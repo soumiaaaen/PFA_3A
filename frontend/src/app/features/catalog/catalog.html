@@ -1,0 +1,272 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Modules et éléments</h1>
+  <span class="count">{{ modules().length }}</span>
+  <span class="line"></span>
+  @if (canEdit()) {
+    <button type="button" class="btn primary" (click)="openModule()">
+      <span class="plus">+</span> Nouveau module
+    </button>
+  }
+</div>
+
+@if (loading()) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger le catalogue.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else if (!programs().length) {
+  <div class="empty">
+    Aucune filière n'existe encore.
+    <a routerLink="/organisation" class="link">Créer une filière</a>
+  </div>
+} @else {
+  <!-- Choix de la filière -->
+  <div class="programs" role="tablist">
+    @for (p of sortedPrograms(); track p.id) {
+      <button type="button" role="tab" class="program-tab" [class.on]="p.id === programId()" (click)="selectProgram(p.id)">
+        <strong>{{ p.code }}</strong>
+        <small>{{ p.name }}</small>
+      </button>
+    }
+  </div>
+
+  <!-- Barre d'outils -->
+  <div class="toolbar">
+    <div class="segmented" role="group" aria-label="Niveau">
+      <button type="button" [class.on]="level() === 0" (click)="level.set(0)">Tous</button>
+      @for (l of levels; track l) {
+        <button type="button" [class.on]="level() === l" (click)="level.set(l)">{{ l }}A</button>
+      }
+    </div>
+
+    <label class="search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      <input type="search" [value]="search()" (input)="onSearch($event)" placeholder="Rechercher un module ou un élément…" autocomplete="off" />
+    </label>
+
+    <span class="spacer"></span>
+
+    <label class="year">
+      <span>Périodes de</span>
+      <select (change)="onYearChange($event)">
+        @for (y of sortedYears(); track y.id) {
+          <option [value]="y.id" [selected]="y.id === yearId()">{{ y.label }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <!-- Résumé -->
+  <div class="summary">
+    <span>
+      <strong>{{ modules().length }}</strong> module{{ modules().length > 1 ? 's' : '' }} ·
+      <strong>{{ elementCount() }}</strong> élément{{ elementCount() > 1 ? 's' : '' }}
+      @if (!canEdit()) { <span class="read-only">· Lecture seule</span> }
+    </span>
+    @if (modulesByLevel().length) {
+      <button type="button" class="link" (click)="expandAll()">
+        {{ openIds().size ? 'Tout replier' : 'Tout déplier' }}
+      </button>
+    }
+  </div>
+
+  @if (modulesLoading()) {
+    <p class="muted">Chargement des modules…</p>
+  } @else {
+    @for (group of modulesByLevel(); track group.level) {
+      <p class="level-title"><span>{{ group.level }}A</span> {{ levelLabel(group.level) }}</p>
+
+      @for (m of group.modules; track m.id) {
+        <article class="module" [class.open]="openIds().has(m.id)" [class.highlight]="highlightId() === m.id">
+          <button type="button" class="module-head" (click)="toggle(m.id)" [attr.aria-expanded]="openIds().has(m.id)">
+            <span class="code">{{ m.code }}</span>
+            <span class="m-name">{{ m.name }}</span>
+            @if (m.coefficient) { <span class="meta">Coef. {{ m.coefficient }}</span> }
+            <span class="badge">{{ m.elements.length }} élément{{ m.elements.length > 1 ? 's' : '' }}</span>
+            <app-icon name="chevron-down" [size]="18" class="chevron" />
+          </button>
+
+          @if (openIds().has(m.id)) {
+            <div class="module-body">
+              @if (m.description || m.objectives) {
+                <div class="texts">
+                  @if (m.description) {
+                    <div><h4>Description</h4><p>{{ m.description }}</p></div>
+                  }
+                  @if (m.objectives) {
+                    <div><h4>Objectifs</h4><p>{{ m.objectives }}</p></div>
+                  }
+                </div>
+              }
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Élément</th>
+                    <th>Période</th>
+                    <th class="right">Coef.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (e of sortedElements(m); track e.id) {
+                    <tr [class.highlight]="highlightId() === e.id">
+                      <td><span class="e-code">{{ e.code }}</span></td>
+                      <td>
+                        <strong class="e-name">{{ e.name }}</strong>
+                        @if (e.description) { <small class="e-desc">{{ e.description }}</small> }
+                      </td>
+                      <td><span class="period">{{ periodLabel(e) }}</span></td>
+                      <td class="right">{{ e.coefficient ?? '—' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" class="empty-cell">Aucun élément dans ce module.</td></tr>
+                  }
+                </tbody>
+              </table>
+
+              @if (canEdit()) {
+                <button type="button" class="add-element" (click)="openElement(m)">
+                  <span class="plus">+</span> Ajouter un élément
+                </button>
+              }
+            </div>
+          }
+        </article>
+      }
+    } @empty {
+      <div class="empty">
+        @if (search() || level()) {
+          Aucun module ne correspond à ces filtres.
+        } @else {
+          Aucun module pour la filière {{ program()?.code }}.
+          @if (canEdit()) { <button type="button" class="link" (click)="openModule()">Créer le premier module</button> }
+        }
+      </div>
+    }
+  }
+}
+
+<!-- Fenêtres -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>
+          {{ m === 'module' ? 'Nouveau module · ' + program()?.code : 'Nouvel élément · ' + targetModule()?.code }}
+        </h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert"><app-icon name="alert" [size]="18" /> {{ modalError() }}</div>
+      }
+
+      <!-- Module -->
+      @if (m === 'module') {
+        <form [formGroup]="moduleForm" (ngSubmit)="submitModule()" novalidate autocomplete="off">
+          <p class="label">Niveau</p>
+          <div class="choice">
+            @for (l of levels; track l) {
+              <button type="button" class="choice-btn" [class.on]="moduleForm.controls.studyLevel.value === l"
+                      (click)="moduleForm.controls.studyLevel.setValue(l)">
+                {{ l }}A <small>{{ levelLabel(l) }}</small>
+              </button>
+            }
+          </div>
+          <div class="row narrow">
+            <div class="field" [class.invalid]="moduleForm.controls.code.touched && moduleForm.controls.code.invalid">
+              <label for="mCode">Code</label>
+              <input id="mCode" formControlName="code" class="upper" />
+            </div>
+            <div class="field" [class.invalid]="moduleForm.controls.name.touched && moduleForm.controls.name.invalid">
+              <label for="mName">Intitulé</label>
+              <input id="mName" formControlName="name" placeholder="Architecture logicielle" />
+            </div>
+          </div>
+          <div class="field small-field" [class.invalid]="moduleForm.controls.coefficient.touched && moduleForm.controls.coefficient.invalid">
+            <label for="mCoef">Coefficient <em>(facultatif)</em></label>
+            <input id="mCoef" formControlName="coefficient" placeholder="1" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label for="mDesc">Description <em>(facultatif)</em></label>
+            <textarea id="mDesc" formControlName="description" rows="2"></textarea>
+          </div>
+          <div class="field">
+            <label for="mObj">Objectifs <em>(facultatif)</em></label>
+            <textarea id="mObj" formControlName="objectives" rows="2"></textarea>
+          </div>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer le module
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Élément -->
+      @if (m === 'element') {
+        <form [formGroup]="elementForm" (ngSubmit)="submitElement()" novalidate autocomplete="off">
+          @if (!periods().length) {
+            <div class="info">
+              L'année choisie n'a pas encore de semestres. Créez-les dans le
+              <a routerLink="/calendrier" class="link" (click)="closeModal()">Calendrier</a>.
+            </div>
+          } @else {
+            <p class="label">Période d'enseignement</p>
+            <div class="choice periods-choice">
+              @for (p of periods(); track p.id) {
+                <button type="button" class="choice-btn" [class.on]="elementForm.controls.periodId.value === p.id"
+                        (click)="elementForm.controls.periodId.setValue(p.id)">
+                  S{{ p.semesterNumber }} · P{{ p.number }}
+                </button>
+              }
+            </div>
+            <div class="row narrow">
+              <div class="field" [class.invalid]="elementForm.controls.code.touched && elementForm.controls.code.invalid">
+                <label for="eCode">Code</label>
+                <input id="eCode" formControlName="code" class="upper" />
+              </div>
+              <div class="field" [class.invalid]="elementForm.controls.name.touched && elementForm.controls.name.invalid">
+                <label for="eName">Intitulé</label>
+                <input id="eName" formControlName="name" placeholder="Microservices" />
+              </div>
+            </div>
+            <div class="field small-field" [class.invalid]="elementForm.controls.coefficient.touched && elementForm.controls.coefficient.invalid">
+              <label for="eCoef">Coefficient <em>(facultatif)</em></label>
+              <input id="eCoef" formControlName="coefficient" placeholder="1" inputmode="decimal" />
+            </div>
+            <div class="field">
+              <label for="eDesc">Description <em>(facultatif)</em></label>
+              <textarea id="eDesc" formControlName="description" rows="2"></textarea>
+            </div>
+            <div class="field">
+              <label for="eObj">Objectifs <em>(facultatif)</em></label>
+              <textarea id="eObj" formControlName="objectives" rows="2"></textarea>
+            </div>
+          }
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving() || !periods().length">
+              @if (saving()) { <span class="spinner"></span> } Ajouter l'élément
+            </button>
+          </footer>
+        </form>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
