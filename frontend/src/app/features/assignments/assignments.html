@@ -1,0 +1,370 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Affectations</h1>
+  <span class="count">{{ stats().count }}</span>
+  <span class="line"></span>
+  @if (editablePrograms().length && period()) {
+    <button type="button" class="btn primary" (click)="openCreate()">
+      <span class="plus">+</span> Nouvelle affectation
+    </button>
+  }
+</div>
+
+@if (loading()) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger les affectations.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  <!-- Année et période -->
+  <div class="period-bar">
+    <label class="year">
+      <span>Année</span>
+      <select (change)="onYearChange($event)">
+        @for (y of sortedYears(); track y.id) {
+          <option [value]="y.id" [selected]="y.id === yearId()">{{ y.label }}</option>
+        }
+      </select>
+    </label>
+
+    @if (periods().length) {
+      <div class="period-tabs" role="tablist">
+        @for (p of periods(); track p.id) {
+          <button type="button" role="tab" class="period-tab" [class.on]="p.id === periodId()" (click)="selectPeriod(p.id)">
+            <strong>S{{ p.semesterNumber }} · P{{ p.number }}</strong>
+            @if (today >= p.startDate && today <= p.endDate) { <i class="live" title="Période en cours"></i> }
+          </button>
+        }
+      </div>
+    } @else {
+      <span class="muted">
+        Aucun semestre pour cette année.
+        <a routerLink="/calendrier" class="link">Ouvrir le calendrier</a>
+      </span>
+    }
+  </div>
+
+  @if (period()) {
+    <!-- Chiffres -->
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-label">Affectations actives</span>
+        <strong>{{ stats().count }}</strong>
+        <small>sur la période S{{ period()!.semesterNumber }} · P{{ period()!.number }}</small>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Enseignants mobilisés</span>
+        <strong>{{ stats().teachers }}</strong>
+        <small>avec au moins une affectation</small>
+      </div>
+      <div class="stat wide">
+        <span class="stat-label">Volume horaire prévu</span>
+        <strong>{{ stats().total }} h</strong>
+        <div class="split">
+          @for (t of stats().byType; track t.type) {
+            @if (t.hours) { <span [attr.data-type]="t.type" [style.width.%]="t.share"></span> }
+          }
+        </div>
+        <div class="split-legend">
+          @for (t of stats().byType; track t.type) {
+            <span><i [attr.data-type]="t.type"></i>{{ t.type }} {{ t.hours }} h</span>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtres -->
+    <div class="toolbar">
+      <label class="search">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input type="search" [value]="search()" (input)="onSearch($event)" placeholder="Élément, enseignant, groupe…" autocomplete="off" />
+      </label>
+      <select class="filter" (change)="onProgramFilter($event)">
+        <option value="" [selected]="!programFilter()">Toutes les filières</option>
+        @for (p of sortedPrograms(); track p.id) {
+          <option [value]="p.id" [selected]="p.id === programFilter()">{{ p.code }} · {{ p.name }}</option>
+        }
+      </select>
+      <select class="filter" (change)="onTeacherFilter($event)">
+        <option value="" [selected]="!teacherFilter()">Tous les enseignants</option>
+        @for (t of teacherOptions(); track t.id) {
+          <option [value]="t.id" [selected]="t.id === teacherFilter()">{{ t.name }}</option>
+        }
+      </select>
+      <div class="segmented" role="group" aria-label="Type">
+        <button type="button" [class.on]="!typeFilter()" (click)="typeFilter.set('')">Tous</button>
+        @for (t of types; track t) {
+          <button type="button" [class.on]="typeFilter() === t" (click)="typeFilter.set(t)">{{ t }}</button>
+        }
+      </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Élément</th>
+            <th>Groupe</th>
+            <th>Type</th>
+            <th>Enseignant</th>
+            <th class="right">Volume</th>
+            <th class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (listLoading()) {
+            <tr><td colspan="6" class="empty-cell">Chargement…</td></tr>
+          } @else {
+            @for (a of rows(); track a.id) {
+              <tr [class.inactive]="!a.active" [class.highlight]="highlightId() === a.id">
+                <td>
+                  <strong class="el-name">{{ a.elementName }}</strong>
+                  <small class="el-code">{{ a.elementCode }} · {{ a.moduleCode }}</small>
+                </td>
+                <td><span class="chip">{{ groupLabel(a) }}</span></td>
+                <td><span class="type" [attr.data-type]="a.activityType">{{ a.activityType }}</span></td>
+                <td>
+                  <span class="person">
+                    <span class="avatar">{{ initials(a.teacherName) }}</span>
+                    {{ a.teacherName }}
+                  </span>
+                </td>
+                <td class="right"><strong class="hours">{{ a.targetHours }} h</strong></td>
+                <td class="right">
+                  <span class="actions">
+                    @if (!a.active) { <span class="off">Désactivée</span> }
+                    <button type="button" class="icon-btn" (click)="openHistory(a)" title="Historique">
+                      <app-icon name="clock" [size]="16" />
+                    </button>
+                    @if (a.active && canEditRow(a)) {
+                      <button type="button" class="icon-btn" (click)="openEdit(a)" title="Modifier">
+                        <app-icon name="user" [size]="16" />
+                      </button>
+                      <button type="button" class="icon-btn danger" (click)="openRemove(a)" title="Désactiver">
+                        <app-icon name="close" [size]="16" />
+                      </button>
+                    }
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty-cell">
+                @if (search() || programFilter() || teacherFilter() || typeFilter()) {
+                  Aucune affectation ne correspond à ces filtres.
+                } @else {
+                  Aucune affectation pour cette période.
+                  @if (editablePrograms().length) {
+                    <button type="button" class="link" (click)="openCreate()">Créer la première</button>
+                  }
+                }
+              </td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- Fenêtres -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>
+          @switch (m) {
+            @case ('create') { Nouvelle affectation · S{{ period()?.semesterNumber }} · P{{ period()?.number }} }
+            @case ('edit') { Modifier l'affectation }
+            @case ('history') { Historique }
+            @case ('remove') { Désactiver l'affectation }
+          }
+        </h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert"><app-icon name="alert" [size]="18" /> {{ modalError() }}</div>
+      }
+
+      @if (m !== 'create' && target(); as a) {
+        <div class="recap">
+          <span class="type" [attr.data-type]="a.activityType">{{ a.activityType }}</span>
+          <div>
+            <strong>{{ a.elementName }}</strong>
+            <small>{{ a.elementCode }} · {{ groupLabel(a) }} · {{ a.teacherName }} · {{ a.targetHours }} h</small>
+          </div>
+        </div>
+      }
+
+      <!-- Création -->
+      @if (m === 'create') {
+        <form [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
+          <div class="field">
+            <label for="cProg">Filière</label>
+            <select id="cProg" formControlName="programId" (change)="onCreateProgram()">
+              @for (p of editablePrograms(); track p.id) {
+                <option [value]="p.id">{{ p.code }} · {{ p.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field" [class.invalid]="createForm.controls.elementId.touched && createForm.controls.elementId.invalid">
+            <label for="cEl">Élément de module</label>
+            @if (createElements().length) {
+              <select id="cEl" formControlName="elementId">
+                <option value="" disabled>Choisir un élément…</option>
+                @for (e of createElements(); track e.id) {
+                  <option [value]="e.id">{{ e.code }} — {{ e.name }} ({{ e.level }}A)</option>
+                }
+              </select>
+            } @else {
+              <p class="info">
+                Aucun élément de cette filière n'est enseigné en S{{ period()?.semesterNumber }} · P{{ period()?.number }}.
+                <a routerLink="/modules" class="link" (click)="closeModal()">Ajouter un élément</a>
+              </p>
+            }
+          </div>
+
+          <div class="row">
+            <div class="field" [class.invalid]="createForm.controls.groupId.touched && createForm.controls.groupId.invalid">
+              <label for="cGroup">Groupe</label>
+              <select id="cGroup" formControlName="groupId">
+                <option value="" disabled>Choisir…</option>
+                @for (g of createGroups(); track g.id) {
+                  <option [value]="g.id">{{ g.studyLevel }}A · {{ g.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label>Type</label>
+              <div class="segmented full">
+                @for (t of types; track t) {
+                  <button type="button" [class.on]="createForm.controls.activityType.value === t"
+                          (click)="createForm.controls.activityType.setValue(t)">{{ t }}</button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field" [class.invalid]="createForm.controls.teacherUserId.touched && createForm.controls.teacherUserId.invalid">
+              <label for="cTeacher">Enseignant</label>
+              <select id="cTeacher" formControlName="teacherUserId">
+                <option value="" disabled>Choisir…</option>
+                @for (t of teacherChoices(); track t.id) {
+                  <option [value]="t.id">{{ t.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="createForm.controls.targetHours.touched && createForm.controls.targetHours.invalid">
+              <label for="cHours">Volume horaire (h)</label>
+              <input id="cHours" type="number" min="1" max="500" step="0.5" formControlName="targetHours" />
+            </div>
+          </div>
+
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving() || !createElements().length">
+              @if (saving()) { <span class="spinner"></span> } Créer l'affectation
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Modification -->
+      @if (m === 'edit') {
+        <form [formGroup]="editForm" (ngSubmit)="submitEdit()" novalidate>
+          <div class="row">
+            <div class="field">
+              <label for="eTeacher">Enseignant</label>
+              <select id="eTeacher" formControlName="teacherUserId">
+                @for (t of teacherChoices(); track t.id) {
+                  <option [value]="t.id">{{ t.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="editForm.controls.targetHours.touched && editForm.controls.targetHours.invalid">
+              <label for="eHours">Volume horaire (h)</label>
+              <input id="eHours" type="number" min="1" max="500" step="0.5" formControlName="targetHours" />
+            </div>
+          </div>
+          <p class="help">L'ancien enseignant et l'ancien volume restent visibles dans l'historique.</p>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Enregistrer
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Historique -->
+      @if (m === 'history') {
+        @if (history(); as h) {
+          <ol class="timeline">
+            @for (item of h; track $index) {
+              <li [attr.data-action]="item.action">
+                <span class="dot"></span>
+                <div>
+                  <strong>
+                    @switch (item.action) {
+                      @case ('CREATED') { Création }
+                      @case ('UPDATED') { Modification }
+                      @case ('DEACTIVATED') { Désactivation }
+                    }
+                  </strong>
+                  <small>{{ fmtDateTime(item.changedAt) }} · par {{ userName(item.changedBy) }}</small>
+                  @if (item.action === 'CREATED') {
+                    <p>{{ userName(item.newTeacherUserId) }} · {{ item.newTargetHours }} h</p>
+                  }
+                  @if (item.action === 'UPDATED') {
+                    @if (item.oldTeacherUserId !== item.newTeacherUserId) {
+                      <p>Enseignant : {{ userName(item.oldTeacherUserId) }} → <b>{{ userName(item.newTeacherUserId) }}</b></p>
+                    }
+                    @if (item.oldTargetHours !== item.newTargetHours) {
+                      <p>Volume : {{ item.oldTargetHours }} h → <b>{{ item.newTargetHours }} h</b></p>
+                    }
+                  }
+                </div>
+              </li>
+            } @empty {
+              <li class="none">Aucun historique.</li>
+            }
+          </ol>
+        } @else {
+          <p class="muted">Chargement…</p>
+        }
+        <footer class="dialog-foot">
+          <button type="button" class="btn ghost" (click)="closeModal()">Fermer</button>
+        </footer>
+      }
+
+      <!-- Désactivation -->
+      @if (m === 'remove') {
+        <p class="confirm">
+          L'affectation ne sera plus utilisée pour l'emploi du temps et le suivi des heures.
+          Elle reste visible dans l'historique.
+        </p>
+        <footer class="dialog-foot">
+          <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+          <button type="button" class="btn danger" [disabled]="saving()" (click)="submitRemove()">
+            @if (saving()) { <span class="spinner"></span> } Désactiver
+          </button>
+        </footer>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
