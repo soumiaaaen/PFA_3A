@@ -1,0 +1,2 @@
+CREATE USER admin_academic_user WITH PASSWORD 'admin_academic_pwd';
+CREATE SCHEMA administration_academic AUTHORIZATION admin_academic_user;

@@ -1,0 +1,26 @@
+# ---------- Secrets : ne JAMAIS commiter ----------
+infra/.env
+.env
+*.env.local
+
+# ---------- Java / Maven ----------
+target/
+*.class
+
+# ---------- Node / Angular ----------
+node_modules/
+dist/
+.angular/
+coverage/
+
+# ---------- Editeurs / systeme ----------
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# ---------- Fichiers temporaires ----------
+*.log
+api-docs.json

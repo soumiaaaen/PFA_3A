@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ensias-postgres
+    environment:
+      POSTGRES_DB: ensias
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ensias"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  administration-academic-service:
+    build: ../services/administration-academic-service
+    container_name: ensias-admin-academic
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ensias?currentSchema=administration_academic
+      SPRING_DATASOURCE_USERNAME: admin_academic_user
+      SPRING_DATASOURCE_PASSWORD: admin_academic_pwd
+      SPRING_PROFILES_ACTIVE: demo
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    ports:
+      - "8081:8081"
+
+volumes:
+  pgdata:
