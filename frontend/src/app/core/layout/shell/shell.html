@@ -1,0 +1,89 @@
+@if (user(); as u) {
+  <!-- Barre du haut -->
+  <header class="topbar">
+    <button type="button" class="burger" (click)="toggleSidebar()" aria-label="Menu">
+      <app-icon [name]="sidebarOpen() ? 'close' : 'menu'" />
+    </button>
+
+    <a routerLink="/" class="brand">
+      <img src="logos/ensias.jpeg" alt="ENSIAS" />
+      <span class="sep"></span>
+      <img src="logos/um5.png" alt="Université Mohammed V de Rabat" />
+      
+    </a>
+
+    <span class="spacer"></span>
+
+    <div class="user-menu">
+      <button type="button" class="user-btn" (click)="toggleMenu($event)" [attr.aria-expanded]="menuOpen()">
+        <span class="avatar">{{ initials() }}</span>
+        <span class="user-text">
+          <strong>{{ u.firstName }} {{ u.lastName }}</strong>
+          <small>{{ roleLabels()[0] }}</small>
+        </span>
+        <app-icon name="chevron-down" [size]="16" class="chevron" [class.open]="menuOpen()" />
+      </button>
+
+      @if (menuOpen()) {
+        <div class="dropdown" role="menu">
+          <div class="dropdown-head">
+            <span class="avatar lg">{{ initials() }}</span>
+            <div>
+              <strong>{{ u.firstName }} {{ u.lastName }}</strong>
+              <small>{{ u.email }}</small>
+            </div>
+          </div>
+          <div class="roles">
+            @for (label of roleLabels(); track label) {
+              <span class="role-badge">{{ label }}</span>
+            }
+          </div>
+          <button type="button" class="dropdown-item" role="menuitem" (click)="auth.logout()">
+            <app-icon name="logout" [size]="18" /> Déconnexion
+          </button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- Bandeau de bienvenue -->
+  <div class="welcome">
+    <span class="dot"></span>
+    Bienvenue {{ u.firstName }} {{ u.lastName }} <span class="muted">({{ roleLabels().join(', ') }})</span>
+  </div>
+
+  <div class="layout">
+    @if (sidebarOpen()) {
+      <div class="backdrop" (click)="sidebarOpen.set(false)"></div>
+    }
+
+    <!-- Menu latéral -->
+    <aside class="sidebar" [class.open]="sidebarOpen()" [class.collapsed]="collapsed()">
+      <div class="nav-scroll">
+        @for (section of sections(); track section.title) {
+          <p class="section-title">{{ section.title }}</p>
+          <nav>
+            @for (item of section.items; track item.path) {
+              <a [routerLink]="item.path" routerLinkActive="active"
+                 [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+                 class="nav-link" [attr.title]="collapsed() ? item.label : null">
+                <app-icon [name]="item.icon" [size]="19" />
+                <span class="label">{{ item.label }}</span>
+              </a>
+            }
+          </nav>
+        }
+      </div>
+
+      <button type="button" class="collapse-btn" (click)="toggleCollapsed()">
+        <app-icon name="chevron-down" [size]="18" class="collapse-icon" />
+        <span class="label">Réduire le menu</span>
+      </button>
+    </aside>
+
+    <!-- Contenu de la page -->
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+}

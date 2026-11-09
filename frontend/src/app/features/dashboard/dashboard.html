@@ -1,0 +1,38 @@
+@if (user(); as u) {
+  <!-- En-tête de bienvenue -->
+  <section class="hero">
+    <div class="hero-text">
+      <p class="date">{{ date() }}</p>
+      <h1>{{ greeting() }}, <span class="name">{{ u.firstName }}</span></h1>
+      <div class="roles">
+        @for (label of roleLabels(); track label) {
+          <span class="role">{{ label }}</span>
+        }
+      </div>
+    </div>
+    <div class="clock">
+      <app-icon name="clock" [size]="22" />
+      <span>{{ time() }}</span>
+    </div>
+  </section>
+
+  <!-- Raccourcis -->
+  <div class="section-head">
+    <h2>Mes espaces</h2>
+    <span class="count">{{ shortcuts().length }}</span>
+    <span class="line"></span>
+  </div>
+
+  <div class="grid">
+    @for (item of shortcuts(); track item.path; let i = $index) {
+      <a class="tile" [routerLink]="item.path" [style.animation-delay.ms]="120 + i * 70">
+        <span class="tile-icon"><app-icon [name]="item.icon" [size]="24" /></span>
+        <strong>{{ item.label }}</strong>
+        <small>{{ item.description }}</small>
+        <span class="go">
+          Ouvrir <app-icon name="arrow-right" [size]="16" />
+        </span>
+      </a>
+    }
+  </div>
+}

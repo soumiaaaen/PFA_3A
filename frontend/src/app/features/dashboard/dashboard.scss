@@ -1,0 +1,241 @@
+$red: #dc2626;
+$blue: #2563eb;
+$blue-light: #eff6ff;
+$text: #111827;
+$muted: #6b7280;
+$border: #e5e7eb;
+
+/* ---------- En-tête ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 28px 32px;
+  border: 1px solid $border;
+  border-left: 5px solid $red;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.05);
+  animation: rise 0.5s ease both;
+
+  /* Halo décoratif */
+  &::after {
+    content: '';
+    position: absolute;
+    right: -80px;
+    top: -80px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+    pointer-events: none;
+  }
+}
+
+.date {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: $muted;
+  text-transform: capitalize;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: $text;
+}
+
+.name {
+  color: $red;
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.role {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: $blue-light;
+  color: $blue;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.clock {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border: 1px solid $border;
+  border-radius: 10px;
+  background: #f9fafb;
+  color: $blue;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Titre de section (comme « Classes 1 » du modèle) ---------- */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 34px 0 18px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: $text;
+  }
+}
+
+.count {
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: $blue-light;
+  color: $blue;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background: $border;
+}
+
+/* ---------- Tuiles ---------- */
+.grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px;
+  border: 1px solid $border;
+  border-radius: 10px;
+  background: #fff;
+  color: $text;
+  text-decoration: none;
+  animation: rise 0.45s ease backwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  /* Bande rouge qui se déploie en haut au survol */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: $red;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: #bfdbfe;
+    box-shadow: 0 16px 30px rgba(17, 24, 39, 0.09);
+
+    &::before {
+      transform: scaleX(1);
+    }
+
+    .tile-icon {
+      background: $blue;
+      color: #fff;
+      transform: rotate(-6deg) scale(1.05);
+    }
+
+    .go {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+
+  strong {
+    font-size: 16px;
+  }
+
+  small {
+    font-size: 13.5px;
+    color: $muted;
+  }
+}
+
+.tile-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: $blue-light;
+  color: $blue;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.25s ease;
+}
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $blue;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 22px 20px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .clock {
+    font-size: 18px;
+  }
+
+  .go {
+    opacity: 1;
+    transform: none;
+  }
+}
