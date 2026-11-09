@@ -1,0 +1,120 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Journal d'audit</h1>
+  <span class="count">{{ counts().total }}</span>
+  <span class="line"></span>
+  <button type="button" class="btn ghost" (click)="load()" [disabled]="loading()">
+    <svg class="refresh" [class.spin]="loading()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>
+    Actualiser
+  </button>
+</div>
+
+<!-- Chiffres -->
+<section class="stats">
+  <div class="stat">
+    <span class="stat-label">Événements chargés</span>
+    <strong>{{ counts().total }}</strong>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Aujourd'hui</span>
+    <strong>{{ counts().today }}</strong>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Auteurs différents</span>
+    <strong>{{ counts().actors }}</strong>
+  </div>
+</section>
+
+<!-- Filtres -->
+<div class="toolbar">
+  <label class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+    <input type="search" [value]="search()" (input)="onSearch($event)" placeholder="Auteur, action, détail…" autocomplete="off" />
+  </label>
+
+  <select class="filter" (change)="onEntityType($event)">
+    <option value="" [selected]="!entityType()">Tous les objets</option>
+    @for (t of entityTypes(); track t) {
+      <option [value]="t" [selected]="t === entityType()">{{ entityLabel(t) }}</option>
+    }
+  </select>
+
+  <div class="segmented" role="group" aria-label="Type d'action">
+    <button type="button" [class.on]="!kind()" (click)="kind.set('')">Toutes</button>
+    @for (k of kinds; track k.value) {
+      <button type="button" [class.on]="kind() === k.value" (click)="kind.set(k.value)">
+        <i class="k-dot" [attr.data-kind]="k.value"></i>{{ k.label }}
+      </button>
+    }
+  </div>
+
+  <span class="spacer"></span>
+
+  <label class="limit">
+    Afficher
+    <select (change)="onLimit($event)">
+      @for (l of limits; track l) {
+        <option [value]="l" [selected]="l === limit()">{{ l }} derniers</option>
+      }
+    </select>
+  </label>
+</div>
+
+<!-- Journal -->
+@if (loading() && !events().length) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger le journal.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  @for (day of days(); track day.key) {
+    <section class="day">
+      <h2 class="day-title">{{ day.label }} <span>{{ day.items.length }}</span></h2>
+      <ol class="feed">
+        @for (e of day.items; track e.id) {
+          <li class="event" [class.open]="openId() === e.id" [attr.data-kind]="kindOf(e.action)">
+            <button type="button" class="event-row" (click)="toggle(e.id)" [attr.aria-expanded]="openId() === e.id">
+              <span class="time">{{ time(e.occurredAt) }}</span>
+              <span class="icon"><app-icon [name]="kindIcon(e.action)" [size]="15" /></span>
+              <span class="body">
+                <span class="headline">
+                  <strong>{{ actionLabel(e.action) }}</strong>
+                  <span class="entity">{{ entityLabel(e.entityType) }}</span>
+                </span>
+                <span class="sub">
+                  par <b>{{ e.actorEmail ?? 'système' }}</b>
+                  @if (e.details) { · {{ shortDetails(e.details) }} }
+                </span>
+              </span>
+              <app-icon name="chevron-down" [size]="16" class="chevron" />
+            </button>
+
+            @if (openId() === e.id) {
+              <div class="details">
+                <dl>
+                  <dt>Date</dt><dd>{{ fullDate(e.occurredAt) }}</dd>
+                  <dt>Auteur</dt><dd>{{ e.actorEmail ?? 'système' }}</dd>
+                  <dt>Action</dt><dd><code>{{ e.action }}</code></dd>
+                  <dt>Objet</dt><dd>{{ entityLabel(e.entityType) }} @if (e.entityId) { <code>{{ e.entityId }}</code> }</dd>
+                </dl>
+                @if (e.details) {
+                  <pre>{{ prettyDetails(e.details) }}</pre>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ol>
+    </section>
+  } @empty {
+    <div class="empty">
+      @if (search() || kind() || entityType()) {
+        Aucun événement ne correspond à ces filtres.
+      } @else {
+        Le journal est vide pour le moment.
+      }
+    </div>
+  }
+}
