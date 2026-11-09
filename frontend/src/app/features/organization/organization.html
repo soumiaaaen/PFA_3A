@@ -1,0 +1,403 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Organisation</h1>
+  <span class="line"></span>
+  @if (!loading() && !loadError()) {
+    <button type="button" class="btn primary" (click)="openCreate()"
+            [disabled]="(tab() === 'programs' && !departments().length) || (tab() === 'groups' && (!programs().length || !years().length))">
+      <span class="plus">+</span>
+      {{ tab() === 'departments' ? 'Nouveau département' : tab() === 'programs' ? 'Nouvelle filière' : 'Nouveau groupe' }}
+    </button>
+  }
+</div>
+
+@if (loading()) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger l'organisation.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  <!-- Cartes = onglets -->
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" class="tab-card" [class.on]="tab() === 'departments'" (click)="setTab('departments')">
+      <span class="tab-icon"><app-icon name="layers" [size]="20" /></span>
+      <span class="tab-text">
+        <small>Départements</small>
+        <strong>{{ departments().length }}</strong>
+        <em [class.warn]="departmentsWithoutHead() > 0">
+          {{ departmentsWithoutHead() ? departmentsWithoutHead() + ' sans chef' : 'Tous ont un chef' }}
+        </em>
+      </span>
+    </button>
+
+    <button type="button" role="tab" class="tab-card" [class.on]="tab() === 'programs'" (click)="setTab('programs')">
+      <span class="tab-icon"><app-icon name="book" [size]="20" /></span>
+      <span class="tab-text">
+        <small>Filières</small>
+        <strong>{{ programs().length }}</strong>
+        <em [class.warn]="programsWithoutHead() > 0">
+          {{ programsWithoutHead() ? programsWithoutHead() + ' sans chef' : 'Toutes ont un chef' }}
+        </em>
+      </span>
+    </button>
+
+    <button type="button" role="tab" class="tab-card" [class.on]="tab() === 'groups'" (click)="setTab('groups')">
+      <span class="tab-icon"><app-icon name="users" [size]="20" /></span>
+      <span class="tab-text">
+        <small>Groupes</small>
+        <strong>{{ groups().length }}</strong>
+        <em>{{ selectedYear() ? 'Année ' + selectedYear()!.label : 'Aucune année' }}</em>
+      </span>
+    </button>
+  </div>
+
+  <!-- Barre d'outils -->
+  <div class="toolbar">
+    <label class="search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      <input type="search" [value]="search()" (input)="onSearch($event)" autocomplete="off"
+             [placeholder]="tab() === 'departments' ? 'Rechercher un département…' : tab() === 'programs' ? 'Rechercher une filière…' : 'Rechercher un groupe…'" />
+    </label>
+
+    @if (tab() === 'programs') {
+      <select class="filter" (change)="onDepartmentFilter($event)">
+        <option value="" [selected]="!departmentFilter()">Tous les départements</option>
+        @for (d of sortedDepartments(); track d.id) {
+          <option [value]="d.id" [selected]="d.id === departmentFilter()">{{ d.code }} · {{ d.name }}</option>
+        }
+      </select>
+    }
+
+    @if (tab() === 'groups') {
+      <select class="filter" (change)="onYearChange($event)">
+        @for (y of sortedYears(); track y.id) {
+          <option [value]="y.id" [selected]="y.id === yearId()">Année {{ y.label }}</option>
+        }
+      </select>
+      <select class="filter" (change)="onProgramFilter($event)">
+        <option value="" [selected]="!programFilter()">Toutes les filières</option>
+        @for (p of sortedPrograms(); track p.id) {
+          <option [value]="p.id" [selected]="p.id === programFilter()">{{ p.code }} · {{ p.name }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  <!-- ===== Départements ===== -->
+  @if (tab() === 'departments') {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Département</th>
+            <th>Chef de département</th>
+            <th>Filières</th>
+            <th class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of filteredDepartments(); track d.id) {
+            <tr [class.highlight]="highlightId() === d.id">
+              <td><span class="code">{{ d.code }}</span></td>
+              <td class="name">{{ d.name }}</td>
+              <td>
+                @if (head(d.headUserId); as h) {
+                  <span class="person">
+                    <span class="avatar">{{ initials(h) }}</span>
+                    <span><strong>{{ h.firstName }} {{ h.lastName }}</strong><small>{{ h.email }}</small></span>
+                  </span>
+                } @else {
+                  <span class="no-head">Non désigné</span>
+                }
+              </td>
+              <td><span class="num">{{ programCount(d.id) }}</span></td>
+              <td class="right">
+                <button type="button" class="btn small" (click)="openHead('department', d)">
+                  <app-icon name="user" [size]="15" /> {{ d.headUserId ? 'Changer le chef' : 'Désigner un chef' }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty-cell">
+              @if (search()) { Aucun département ne correspond à « {{ search() }} ». }
+              @else { Aucun département. <button type="button" class="link" (click)="openCreate()">Créer le premier</button> }
+            </td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ===== Filières ===== -->
+  @if (tab() === 'programs') {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Filière</th>
+            <th>Département</th>
+            <th>Chef de filière</th>
+            <th class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of filteredPrograms(); track p.id) {
+            <tr [class.highlight]="highlightId() === p.id">
+              <td><span class="code">{{ p.code }}</span></td>
+              <td class="name">{{ p.name }}</td>
+              <td><span class="muted">{{ p.departmentCode }}</span> {{ departmentName(p.departmentId) }}</td>
+              <td>
+                @if (head(p.headUserId); as h) {
+                  <span class="person">
+                    <span class="avatar teal">{{ initials(h) }}</span>
+                    <span><strong>{{ h.firstName }} {{ h.lastName }}</strong><small>{{ h.email }}</small></span>
+                  </span>
+                } @else {
+                  <span class="no-head">Non désigné</span>
+                }
+              </td>
+              <td class="right">
+                <button type="button" class="btn small" (click)="openHead('program', p)">
+                  <app-icon name="user" [size]="15" /> {{ p.headUserId ? 'Changer le chef' : 'Désigner un chef' }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty-cell">
+              @if (!departments().length) { Créez d'abord un département. }
+              @else if (search() || departmentFilter()) { Aucune filière ne correspond à ces filtres. }
+              @else { Aucune filière. <button type="button" class="link" (click)="openCreate()">Créer la première</button> }
+            </td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- ===== Groupes ===== -->
+  @if (tab() === 'groups') {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Groupe</th>
+            <th>Filière</th>
+            <th>Niveau</th>
+            <th>Année</th>
+            <th class="right">Étudiants</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (groupsLoading()) {
+            <tr><td colspan="5" class="empty-cell">Chargement des groupes…</td></tr>
+          } @else {
+            @for (g of filteredGroups(); track g.id) {
+              <tr [class.highlight]="highlightId() === g.id">
+                <td><span class="group-name">{{ g.name }}</span></td>
+                <td><span class="code">{{ g.programCode }}</span></td>
+                <td><span class="level">{{ g.studyLevel }}A</span> {{ levelLabel(g.studyLevel) }}</td>
+                <td>{{ g.academicYearLabel }}</td>
+                <td class="right">
+                  @switch (studentCount(g.id)) {
+                    @case (undefined) { <span class="muted">…</span> }
+                    @case (null) { <span class="muted">—</span> }
+                    @default { <span class="num">{{ studentCount(g.id) }}</span> }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty-cell">
+                @if (!programs().length) { Créez d'abord une filière. }
+                @else if (!years().length) { Créez d'abord une année dans le <a routerLink="/calendrier" class="link">Calendrier</a>. }
+                @else if (search() || programFilter()) { Aucun groupe ne correspond à ces filtres. }
+                @else { Aucun groupe pour cette année. <button type="button" class="link" (click)="openCreate()">Créer le premier</button> }
+              </td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- Fenêtres -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>
+          @switch (m) {
+            @case ('department') { Nouveau département }
+            @case ('program') { Nouvelle filière }
+            @case ('group') { Nouveau groupe }
+            @case ('head') { {{ headTarget()?.kind === 'department' ? 'Chef de département' : 'Chef de filière' }} }
+          }
+        </h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert"><app-icon name="alert" [size]="18" /> {{ modalError() }}</div>
+      }
+
+      <!-- Département -->
+      @if (m === 'department') {
+        <form [formGroup]="departmentForm" (ngSubmit)="submitDepartment()" novalidate autocomplete="off">
+          <div class="row narrow">
+            <div class="field" [class.invalid]="departmentForm.controls.code.touched && departmentForm.controls.code.invalid">
+              <label for="dCode">Code</label>
+              <input id="dCode" formControlName="code" placeholder="INFO" class="upper" />
+            </div>
+            <div class="field" [class.invalid]="departmentForm.controls.name.touched && departmentForm.controls.name.invalid">
+              <label for="dName">Nom</label>
+              <input id="dName" formControlName="name" placeholder="Informatique" />
+            </div>
+          </div>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer le département
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Filière -->
+      @if (m === 'program') {
+        <form [formGroup]="programForm" (ngSubmit)="submitProgram()" novalidate autocomplete="off">
+          <div class="field">
+            <label for="pDept">Département</label>
+            <select id="pDept" formControlName="departmentId">
+              @for (d of sortedDepartments(); track d.id) {
+                <option [value]="d.id">{{ d.code }} · {{ d.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="row narrow">
+            <div class="field" [class.invalid]="programForm.controls.code.touched && programForm.controls.code.invalid">
+              <label for="pCode">Code</label>
+              <input id="pCode" formControlName="code" placeholder="GL" class="upper" />
+            </div>
+            <div class="field" [class.invalid]="programForm.controls.name.touched && programForm.controls.name.invalid">
+              <label for="pName">Nom</label>
+              <input id="pName" formControlName="name" placeholder="Génie logiciel" />
+            </div>
+          </div>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer la filière
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Groupe -->
+      @if (m === 'group') {
+        <form [formGroup]="groupForm" (ngSubmit)="submitGroup()" novalidate autocomplete="off">
+          <div class="row">
+            <div class="field">
+              <label for="gProg">Filière</label>
+              <select id="gProg" formControlName="programId">
+                @for (p of sortedPrograms(); track p.id) {
+                  <option [value]="p.id">{{ p.code }} · {{ p.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="gYear">Année universitaire</label>
+              <select id="gYear" formControlName="academicYearId">
+                @for (y of sortedYears(); track y.id) {
+                  <option [value]="y.id">{{ y.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <p class="label">Niveau</p>
+          <div class="choice">
+            @for (l of levels; track l) {
+              <button type="button" class="choice-btn" [class.on]="groupForm.controls.studyLevel.value === l"
+                      (click)="groupForm.controls.studyLevel.setValue(l)">
+                {{ l }}A <small>{{ levelLabel(l) }}</small>
+              </button>
+            }
+          </div>
+
+          <div class="field" [class.invalid]="groupForm.controls.name.touched && groupForm.controls.name.invalid">
+            <label for="gName">Nom du groupe</label>
+            <input id="gName" formControlName="name" placeholder="G1" class="upper" />
+          </div>
+
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer le groupe
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Chef -->
+      @if (m === 'head') {
+        <form [formGroup]="headForm" (ngSubmit)="submitHead()" novalidate>
+          <p class="target">{{ headTarget()?.label }}</p>
+          @if (headCandidates(); as c) {
+            @if (!c.withRole.length && !c.teachers.length) {
+              <div class="info">
+                Aucun enseignant actif. Créez d'abord un compte dans la page
+                <a routerLink="/comptes" class="link" (click)="closeModal()">Comptes</a>.
+              </div>
+            } @else {
+              <div class="field">
+                <label for="hUser">Responsable</label>
+                <select id="hUser" formControlName="userId">
+                  <option value="" disabled>Choisir un compte…</option>
+                  @if (c.withRole.length) {
+                    <optgroup [label]="c.role === 'CHEF_DEPARTEMENT' ? 'Chefs de département' : 'Chefs de filière'">
+                      @for (u of c.withRole; track u.id) {
+                        <option [value]="u.id">{{ u.lastName }} {{ u.firstName }} — {{ u.email }}</option>
+                      }
+                    </optgroup>
+                  }
+                  @if (c.teachers.length) {
+                    <optgroup label="Autres enseignants">
+                      @for (u of c.teachers; track u.id) {
+                        <option [value]="u.id">{{ u.lastName }} {{ u.firstName }} — {{ u.email }}</option>
+                      }
+                    </optgroup>
+                  }
+                </select>
+              </div>
+              <p class="help">
+                Le compte doit avoir le rôle
+                <strong>{{ c.role === 'CHEF_DEPARTEMENT' ? 'Chef de département' : 'Chef de filière' }}</strong>.
+                Vous pouvez l'ajouter dans la page <a routerLink="/comptes" class="link" (click)="closeModal()">Comptes</a>.
+              </p>
+            }
+          }
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving() || !headForm.controls.userId.value">
+              @if (saving()) { <span class="spinner"></span> } Enregistrer
+            </button>
+          </footer>
+        </form>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
