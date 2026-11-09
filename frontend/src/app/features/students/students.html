@@ -1,0 +1,282 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Étudiants</h1>
+  <span class="count">{{ students().length }}</span>
+  <span class="line"></span>
+  @if (isAdmin && !loading() && !loadError()) {
+    <button type="button" class="btn primary" (click)="openProfile()">
+      <span class="plus">+</span> Nouveau profil étudiant
+    </button>
+  }
+</div>
+
+@if (loading()) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger les étudiants.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  <div class="layout">
+    <!-- Panneau des groupes -->
+    <aside class="groups-panel">
+      <label class="year">
+        <span>Année</span>
+        <select (change)="onYearChange($event)">
+          @for (y of sortedYears(); track y.id) {
+            <option [value]="y.id" [selected]="y.id === yearId()">{{ y.label }}</option>
+          }
+        </select>
+      </label>
+
+      <nav class="group-list">
+        <button type="button" class="g-item" [class.on]="selection() === 'all'" (click)="select('all')">
+          <app-icon name="users" [size]="17" />
+          <span class="g-name">Tous les étudiants</span>
+          <span class="g-count">{{ students().length }}</span>
+        </button>
+        <button type="button" class="g-item" [class.on]="selection() === 'none'" (click)="select('none')">
+          <app-icon name="alert" [size]="17" />
+          <span class="g-name">Sans groupe</span>
+          <span class="g-count" [class.warn]="withoutGroupCount() > 0">{{ withoutGroupCount() }}</span>
+        </button>
+
+        @if (groupsLoading()) {
+          <p class="g-empty">Chargement des groupes…</p>
+        } @else {
+          @for (entry of groupsByProgram(); track entry.program.id) {
+            <p class="g-title">{{ entry.program.code }} <small>{{ entry.program.name }}</small></p>
+            @for (g of entry.groups; track g.id) {
+              <button type="button" class="g-item" [class.on]="selection() === g.id" (click)="select(g.id)">
+                <span class="g-level">{{ g.studyLevel }}A</span>
+                <span class="g-name">{{ g.name }}</span>
+                <span class="g-count">{{ count(g.id) }}</span>
+              </button>
+            }
+          } @empty {
+            <p class="g-empty">
+              Aucun groupe pour cette année.
+              @if (isAdmin) { <a routerLink="/organisation" class="link">Créer des groupes</a> }
+            </p>
+          }
+        }
+      </nav>
+    </aside>
+
+    <!-- Liste des étudiants -->
+    <section class="main">
+      <div class="main-head">
+        <div>
+          <h2>
+            @switch (selection()) {
+              @case ('all') { Tous les étudiants }
+              @case ('none') { Étudiants sans groupe }
+              @default { Groupe {{ selectedGroup()?.name }} }
+            }
+          </h2>
+          <p class="muted">
+            @if (selectedGroup(); as g) {
+              {{ g.programCode }} · {{ g.studyLevel }}A · {{ g.academicYearLabel }} · {{ count(g.id) }} inscrit{{ count(g.id) > 1 ? 's' : '' }}
+            } @else if (selection() === 'none') {
+              Étudiants inscrits dans aucun groupe pour l'année choisie
+            } @else {
+              Tous les profils étudiants de l'école
+            }
+          </p>
+        </div>
+        @if (selectedGroup()) {
+          <button type="button" class="btn primary" (click)="openEnroll()">
+            <span class="plus">+</span> Inscrire des étudiants
+          </button>
+        }
+      </div>
+
+      <label class="search">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input type="search" [value]="search()" (input)="onSearch($event)" placeholder="Rechercher par nom, email ou numéro…" autocomplete="off" />
+      </label>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Étudiant</th>
+              <th>N° étudiant</th>
+              <th>Groupe</th>
+              @if (selectedGroup()) { <th class="right">Action</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of rows(); track s.userId) {
+              <tr [class.highlight]="highlightIds().has(s.userId)">
+                <td>
+                  <span class="person">
+                    <span class="avatar">{{ initials(s) }}</span>
+                    <span><strong>{{ s.lastName }} {{ s.firstName }}</strong><small>{{ s.email }}</small></span>
+                  </span>
+                </td>
+                <td><span class="number">{{ s.studentNumber }}</span></td>
+                <td>
+                  @for (g of groupsOf(s.userId); track g.id) {
+                    <button type="button" class="chip" (click)="select(g.id)" [attr.title]="'Voir le groupe ' + g.name">
+                      {{ g.programCode }} · {{ g.studyLevel }}A · {{ g.name }}
+                    </button>
+                  } @empty {
+                    <span class="no-group">Aucun groupe</span>
+                  }
+                </td>
+                @if (selectedGroup()) {
+                  <td class="right">
+                    <button type="button" class="btn danger-ghost" (click)="openRemove(s)">Retirer</button>
+                  </td>
+                }
+              </tr>
+            } @empty {
+              <tr><td [attr.colspan]="selectedGroup() ? 4 : 3" class="empty-cell">
+                @if (search()) {
+                  Aucun étudiant ne correspond à « {{ search() }} ».
+                } @else if (selectedGroup()) {
+                  Aucun étudiant dans ce groupe.
+                  <button type="button" class="link" (click)="openEnroll()">Inscrire des étudiants</button>
+                } @else if (selection() === 'none') {
+                  Tous les étudiants ont un groupe.
+                } @else {
+                  Aucun profil étudiant.
+                  @if (isAdmin) { <button type="button" class="link" (click)="openProfile()">Créer le premier</button> }
+                }
+              </td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+}
+
+<!-- Fenêtres -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" [class.wide]="m === 'enroll'" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>
+          @switch (m) {
+            @case ('profile') { Nouveau profil étudiant }
+            @case ('enroll') { Inscrire dans {{ selectedGroup()?.programCode }} · {{ selectedGroup()?.studyLevel }}A · {{ selectedGroup()?.name }} }
+            @case ('remove') { Retirer du groupe }
+          }
+        </h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert"><app-icon name="alert" [size]="18" /> {{ modalError() }}</div>
+      }
+
+      <!-- Profil étudiant -->
+      @if (m === 'profile') {
+        <form [formGroup]="profileForm" (ngSubmit)="submitProfile()" novalidate autocomplete="off">
+          @if (!accountsWithoutProfile().length) {
+            <div class="info">
+              Tous les comptes « Étudiant » ont déjà un profil. Créez d'abord un compte avec le rôle Étudiant
+              dans la page <a routerLink="/comptes" class="link" (click)="closeModal()">Comptes</a>.
+            </div>
+          } @else {
+            <div class="field">
+              <label for="pUser">Compte étudiant</label>
+              <select id="pUser" formControlName="userId">
+                @for (u of accountsWithoutProfile(); track u.id) {
+                  <option [value]="u.id">{{ u.lastName }} {{ u.firstName }} — {{ u.email }}</option>
+                }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="profileForm.controls.studentNumber.touched && profileForm.controls.studentNumber.invalid">
+              <label for="pNum">Numéro étudiant (CNE / Apogée)</label>
+              <input id="pNum" formControlName="studentNumber" placeholder="ex. E2026001" class="upper" />
+            </div>
+          }
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving() || !accountsWithoutProfile().length">
+              @if (saving()) { <span class="spinner"></span> } Créer le profil
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Inscription -->
+      @if (m === 'enroll') {
+        <label class="search in-dialog">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input type="search" [value]="enrollSearch()" (input)="onEnrollSearch($event)" placeholder="Rechercher un étudiant…" autocomplete="off" />
+        </label>
+
+        @if (enrollCandidates().length) {
+          <div class="pick-head">
+            <button type="button" class="link" (click)="toggleAll()">
+              {{ picked().size === enrollCandidates().length ? 'Tout décocher' : 'Tout cocher' }}
+            </button>
+            <span class="muted">{{ picked().size }} sélectionné{{ picked().size > 1 ? 's' : '' }}</span>
+          </div>
+          <ul class="pick-list">
+            @for (s of enrollCandidates(); track s.userId) {
+              <li>
+                <label class="pick" [class.on]="picked().has(s.userId)">
+                  <input type="checkbox" [checked]="picked().has(s.userId)" (change)="togglePick(s.userId)" />
+                  <span class="avatar sm">{{ initials(s) }}</span>
+                  <span class="pick-text">
+                    <strong>{{ s.lastName }} {{ s.firstName }}</strong>
+                    <small>{{ s.studentNumber }} · {{ s.email }}</small>
+                  </span>
+                  @for (g of groupsOf(s.userId); track g.id) {
+                    <span class="chip static">{{ g.programCode }} · {{ g.name }}</span>
+                  }
+                </label>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-cell">
+            @if (enrollSearch()) { Aucun étudiant ne correspond à cette recherche. }
+            @else { Tous les étudiants sont déjà dans ce groupe. }
+          </p>
+        }
+
+        <footer class="dialog-foot">
+          <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+          <button type="button" class="btn primary" [disabled]="saving() || !picked().size" (click)="submitEnroll()">
+            @if (saving()) { <span class="spinner"></span> }
+            Inscrire {{ picked().size || '' }} étudiant{{ picked().size > 1 ? 's' : '' }}
+          </button>
+        </footer>
+      }
+
+      <!-- Retrait -->
+      @if (m === 'remove') {
+        @if (toRemove(); as s) {
+          <p class="confirm">
+            Retirer <strong>{{ s.firstName }} {{ s.lastName }}</strong> du groupe
+            <strong>{{ selectedGroup()?.programCode }} · {{ selectedGroup()?.name }}</strong> ?
+            Son compte et son profil ne sont pas supprimés.
+          </p>
+        }
+        <footer class="dialog-foot">
+          <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+          <button type="button" class="btn danger" [disabled]="saving()" (click)="submitRemove()">
+            @if (saving()) { <span class="spinner"></span> } Retirer
+          </button>
+        </footer>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
