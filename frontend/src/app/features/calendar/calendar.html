@@ -1,0 +1,291 @@
+<!-- En-tête -->
+<div class="page-head">
+  <h1>Calendrier académique</h1>
+  <span class="count">{{ years().length }}</span>
+  <span class="line"></span>
+  <button type="button" class="btn primary" (click)="openYear()">
+    <span class="plus">+</span> Nouvelle année
+  </button>
+</div>
+
+@if (loading()) {
+  <p class="muted">Chargement…</p>
+} @else if (loadError()) {
+  <div class="empty">
+    Impossible de charger le calendrier.
+    <button type="button" class="link" (click)="loadYears()">Réessayer</button>
+  </div>
+} @else if (!years().length) {
+  <div class="empty">
+    Aucune année universitaire n'est encore créée.
+    <button type="button" class="link" (click)="openYear()">Créer la première année</button>
+  </div>
+} @else {
+  <!-- Onglets des années -->
+  <div class="years" role="tablist">
+    @for (y of tabYears(); track y.id) {
+      <button type="button" role="tab" class="year-tab" [class.on]="y.id === selectedYearId()"
+              [attr.aria-selected]="y.id === selectedYearId()" (click)="selectYear(y.id)">
+        {{ y.label }}
+        @if (status(y.startDate, y.endDate) === 'current') {
+          <i class="live" title="Année en cours"></i>
+        }
+      </button>
+    }
+  </div>
+
+  @if (selectedYear(); as y) {
+    <!-- Indicateurs -->
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-label"><app-icon name="calendar" [size]="16" /> Année {{ y.label }}</span>
+        <strong>{{ yearProgress() }} %</strong>
+        <div class="bar"><span [style.width.%]="yearProgress()"></span></div>
+        <small>{{ fmt(y.startDate) }} → {{ fmt(y.endDate) }} · {{ weeks(y.startDate, y.endDate) }} semaines</small>
+      </div>
+
+      <div class="stat">
+        <span class="stat-label"><app-icon name="clock" [size]="16" /> Période en cours</span>
+        @if (currentPeriod(); as c) {
+          <strong>S{{ c.semester }} · Période {{ c.period.number }}</strong>
+          <small>Jusqu'au {{ fmtLong(c.period.endDate) }}</small>
+        } @else {
+          <strong class="none">Aucune</strong>
+          <small>Pas de cours à cette date</small>
+        }
+      </div>
+
+      <div class="stat">
+        <span class="stat-label"><app-icon name="alert" [size]="16" /> Prochaine échéance</span>
+        @if (nextMilestone(); as n) {
+          <strong>{{ n.days === 0 ? "Aujourd'hui" : 'Dans ' + n.days + ' jours' }}</strong>
+          <small>{{ n.label }} · {{ fmt(n.date) }}</small>
+        } @else {
+          <strong class="none">—</strong>
+          <small>Aucune échéance à venir</small>
+        }
+      </div>
+
+      <div class="stat">
+        <span class="stat-label"><app-icon name="layers" [size]="16" /> Semestres configurés</span>
+        <strong>{{ semesters().length }} / 2</strong>
+        <small>{{ semesters().length * 2 }} périodes sur 4</small>
+      </div>
+    </section>
+  }
+
+  <!-- Semestres + calendrier -->
+  @if (semestersLoading()) {
+    <p class="muted">Chargement des semestres…</p>
+  } @else {
+    <div class="main-grid">
+      <div class="sem-col">
+        @for (slot of slots(); track slot.number) {
+          @if (slot.semester; as s) {
+            <article class="sem-card" [class.current]="status(s.startDate, s.endDate) === 'current'"
+                     [class.highlight]="highlightId() === s.id">
+              <header class="sem-head">
+                <span class="sem-badge">S{{ s.number }}</span>
+                <div class="sem-title">
+                  <h3>Semestre {{ s.number }}</h3>
+                  <small>{{ fmt(s.startDate) }} – {{ fmt(s.endDate) }} · {{ weeks(s.startDate, s.endDate) }} semaines</small>
+                </div>
+                <span class="pill" [attr.data-status]="status(s.startDate, s.endDate)">
+                  {{ statusLabel(s.startDate, s.endDate) }}
+                </span>
+              </header>
+
+              <div class="bar thin"><span [style.width.%]="progress(s.startDate, s.endDate)"></span></div>
+
+              <ul class="periods">
+                @for (p of s.periods; track p.id) {
+                  <li [class.current]="status(p.startDate, p.endDate) === 'current'">
+                    <span class="period">P{{ p.number }}</span>
+                    <div class="p-main">
+                      <strong>Période {{ p.number }}</strong>
+                      <small>{{ fmt(p.startDate) }} → {{ fmt(p.endDate) }}</small>
+                    </div>
+                    <span class="p-weeks">{{ weeks(p.startDate, p.endDate) }} sem.</span>
+                    <span class="state" [attr.data-status]="status(p.startDate, p.endDate)">
+                      <i></i>
+                      @if (status(p.startDate, p.endDate) === 'current') {
+                        Encore {{ daysLeft(p.endDate) }} j
+                      } @else {
+                        {{ statusLabel(p.startDate, p.endDate) }}
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            </article>
+          } @else {
+            <button type="button" class="sem-card add" (click)="openSemester(slot.number)">
+              <span class="add-icon">+</span>
+              <strong>Ajouter le semestre {{ slot.number }}</strong>
+              <small>Les deux périodes seront créées automatiquement</small>
+            </button>
+          }
+        }
+      </div>
+
+      <!-- Petit calendrier -->
+      <aside class="cal-card">
+        <header class="cal-head">
+          <button type="button" class="nav-btn" [disabled]="!canPrev()" (click)="moveMonth(-1)" aria-label="Mois précédent">
+            <app-icon name="chevron-down" [size]="16" class="left" />
+          </button>
+          <h3>{{ monthLabel() }}</h3>
+          <button type="button" class="nav-btn" [disabled]="!canNext()" (click)="moveMonth(1)" aria-label="Mois suivant">
+            <app-icon name="chevron-down" [size]="16" class="right" />
+          </button>
+        </header>
+
+        <div class="cal-grid">
+          <span class="wd wk">Sem</span>
+          @for (d of weekDays; track $index) {
+            <span class="wd">{{ d }}</span>
+          }
+          @for (w of monthWeeks(); track w.monday) {
+            <span class="week-num" [class.current]="w.current">{{ w.number ?? '' }}</span>
+            @for (c of w.days; track c.iso) {
+              <button type="button" class="day" [class.out]="!c.inMonth" [class.off]="!c.period"
+                      [class.weekend]="c.weekend" [class.today]="c.today" [class.selected]="c.iso === selectedDay()"
+                      (click)="selectedDay.set(c.iso)" [attr.title]="c.period?.label">
+                {{ c.day }}
+                @if (c.mark) { <i class="dot"></i> }
+              </button>
+            }
+          }
+        </div>
+
+        <!-- Détail du jour cliqué -->
+        @if (dayInfo(); as d) {
+          <div class="day-info">
+            <strong>{{ d.label }}</strong>
+            @if (d.inYear) {
+              <span><app-icon name="calendar" [size]="14" /> Semaine {{ d.week }}</span>
+              <span><app-icon name="layers" [size]="14" /> {{ d.period ?? 'Hors période (vacances)' }}</span>
+              @if (d.event) {
+                <span class="event"><i class="dot"></i>{{ d.event }}</span>
+              }
+            } @else {
+              <span class="muted">En dehors de l'année {{ selectedYear()?.label }}</span>
+            }
+          </div>
+        }
+
+        <footer class="cal-foot">
+          <span><i class="dot"></i> Début / fin de période</span>
+          @if (status(selectedYear()!.startDate, selectedYear()!.endDate) === 'current') {
+            <button type="button" class="link" (click)="goToday(); selectedDay.set(today)">Aujourd'hui</button>
+          }
+        </footer>
+      </aside>
+    </div>
+  }
+}
+
+<!-- Fenêtres -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>{{ m === 'year' ? 'Nouvelle année universitaire' : 'Nouveau semestre · ' + selectedYear()?.label }}</h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert"><app-icon name="alert" [size]="18" /> {{ modalError() }}</div>
+      }
+
+      <!-- Nouvelle année -->
+      @if (m === 'year') {
+        <form [formGroup]="yearForm" (ngSubmit)="submitYear()" novalidate autocomplete="off">
+          <div class="field" [class.invalid]="yearForm.controls.label.touched && yearForm.controls.label.invalid">
+            <label for="label">Libellé</label>
+            <input id="label" formControlName="label" placeholder="2027-2028" />
+            @if (yearForm.controls.label.touched && yearForm.controls.label.invalid) {
+              <small class="hint">Format attendu : 2027-2028</small>
+            }
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="yStart">Date de début</label>
+              <input id="yStart" type="date" formControlName="startDate" />
+            </div>
+            <div class="field">
+              <label for="yEnd">Date de fin</label>
+              <input id="yEnd" type="date" formControlName="endDate" />
+            </div>
+          </div>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer l'année
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Nouveau semestre -->
+      @if (m === 'semester') {
+        <form [formGroup]="semesterForm" (ngSubmit)="submitSemester()" novalidate autocomplete="off">
+          <p class="label">Semestre</p>
+          <div class="choice">
+            @for (n of [1, 2]; track n) {
+              <button type="button" class="choice-btn" [class.on]="semesterForm.controls.number.value === n"
+                      [disabled]="takenNumbers().includes(n)" (click)="fillSemester(n)">
+                S{{ n }}
+                @if (takenNumbers().includes(n)) { <small>déjà créé</small> }
+              </button>
+            }
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="sStart">Début du semestre</label>
+              <input id="sStart" type="date" formControlName="startDate" />
+            </div>
+            <div class="field">
+              <label for="sEnd">Fin du semestre</label>
+              <input id="sEnd" type="date" formControlName="endDate" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="p1End">Dernier jour de la période 1</label>
+            <input id="p1End" type="date" formControlName="period1EndDate" />
+          </div>
+
+          <!-- Aperçu en direct -->
+          @if (preview(); as pv) {
+            <div class="preview" [class.bad]="pv.error">
+              @if (pv.error) {
+                <p class="pv-error"><app-icon name="alert" [size]="16" /> {{ pv.error }}</p>
+              } @else {
+                <p><strong>Période 1</strong> : {{ fmt(pv.p1.start) }} – {{ fmt(pv.p1.end) }} ({{ weeks(pv.p1.start, pv.p1.end) }} semaines)</p>
+                <p><strong>Période 2</strong> : {{ fmt(pv.p2.start) }} – {{ fmt(pv.p2.end) }} ({{ weeks(pv.p2.start, pv.p2.end) }} semaines)</p>
+              }
+            </div>
+          }
+
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving() || !!preview()?.error">
+              @if (saving()) { <span class="spinner"></span> } Créer le semestre
+            </button>
+          </footer>
+        </form>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
