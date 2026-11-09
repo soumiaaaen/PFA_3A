@@ -1,0 +1,274 @@
+<!-- En-tête de page (comme « Classes 1 » du modèle) -->
+<div class="page-head">
+  <h1>Comptes</h1>
+  <span class="count">{{ stats().total }}</span>
+  <span class="line"></span>
+  <button type="button" class="btn primary" (click)="openCreate()">
+    <span class="plus">+</span> Nouveau compte
+  </button>
+</div>
+
+<!-- Statistiques cliquables (servent aussi de filtre) -->
+<div class="stats">
+  <button type="button" class="stat" [class.selected]="statusFilter() === 'all'" (click)="statusFilter.set('all')">
+    <span class="stat-icon blue"><app-icon name="users" /></span>
+    <span><strong>{{ stats().total }}</strong><small>Comptes</small></span>
+  </button>
+  <button type="button" class="stat" [class.selected]="statusFilter() === 'active'" (click)="statusFilter.set('active')">
+    <span class="stat-icon green"><app-icon name="check" /></span>
+    <span><strong>{{ stats().active }}</strong><small>Actifs</small></span>
+  </button>
+  <button type="button" class="stat" [class.selected]="statusFilter() === 'inactive'" (click)="statusFilter.set('inactive')">
+    <span class="stat-icon red"><app-icon name="lock" /></span>
+    <span><strong>{{ stats().inactive }}</strong><small>Désactivés</small></span>
+  </button>
+</div>
+
+<!-- Recherche et filtres -->
+<div class="toolbar">
+  <div class="search">
+    <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+    <input type="search" placeholder="Rechercher un nom ou un email…" [value]="search()" (input)="onSearch($event)" />
+  </div>
+  <label class="filter">
+    <span>Rôle</span>
+    <select [value]="roleFilter()" (change)="onRoleFilter($event)">
+      <option value="">Tous les rôles</option>
+      @for (r of roleCodes; track r) {
+        <option [value]="r">{{ roleLabels[r] }}</option>
+      }
+    </select>
+  </label>
+  @if (search() || roleFilter() || statusFilter() !== 'all') {
+    <button type="button" class="btn ghost" (click)="resetFilters()">Effacer les filtres</button>
+  }
+</div>
+
+<!-- Tableau -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Utilisateur</th>
+        <th>Rôles</th>
+        <th>Statut</th>
+        <th class="right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @if (loading()) {
+        @for (i of [1, 2, 3, 4]; track i) {
+          <tr class="skeleton">
+            <td><span class="sk sk-avatar"></span><span class="sk sk-text"></span></td>
+            <td><span class="sk sk-pill"></span></td>
+            <td><span class="sk sk-pill"></span></td>
+            <td></td>
+          </tr>
+        }
+      } @else if (loadError()) {
+        <tr>
+          <td colspan="4" class="empty">
+            Impossible de charger les comptes.
+            <button type="button" class="link" (click)="load()">Réessayer</button>
+          </td>
+        </tr>
+      } @else {
+        @for (u of filtered(); track u.id; let i = $index) {
+          <tr [class.highlight]="highlightId() === u.id" [class.inactive]="!u.active"
+              [style.animation-delay.ms]="i * 35">
+            <td>
+              <div class="person">
+                <span class="avatar" [style.background]="u.active ? avatarColor(u) : null" [class.off]="!u.active">{{ initials(u) }}</span>
+                <span>
+                  <strong>
+                    {{ u.firstName }} {{ u.lastName }}
+                    @if (u.id === currentUserId()) {
+                      <em class="me">vous</em>
+                    }
+                  </strong>
+                  <small>{{ u.email }}</small>
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="badges">
+                @for (r of sortedRoles(u); track r) {
+                  <span class="badge" [attr.data-role]="r"><span class="dot"></span>{{ roleLabels[r] }}</span>
+                }
+              </div>
+            </td>
+            <td>
+              <button type="button" class="switch" [class.on]="u.active"
+                      [class.busy]="togglingId() === u.id"
+                      [disabled]="u.id === currentUserId()"
+                      [attr.title]="u.id === currentUserId() ? 'Vous ne pouvez pas désactiver votre propre compte' : (u.active ? 'Désactiver' : 'Activer')"
+                      (click)="toggleActive(u)">
+                <span class="knob"></span>
+              </button>
+              <span class="status-text" [class.on]="u.active">{{ u.active ? 'Actif' : 'Désactivé' }}</span>
+            </td>
+            <td class="right">
+              <div class="actions">
+                <button type="button" class="act blue" (click)="openRoles(u)">
+                  <app-icon name="shield" [size]="16" /> Rôles
+                </button>
+                <button type="button" class="act orange" (click)="openPassword(u)">
+                  <app-icon name="lock" [size]="16" /> Mot de passe
+                </button>
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty">
+              Aucun compte ne correspond à votre recherche.
+              <button type="button" class="link" (click)="resetFilters()">Effacer les filtres</button>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+
+<!-- Fenêtre modale -->
+@if (modal(); as m) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <h2>
+          @switch (m.kind) {
+            @case ('create') { Nouveau compte }
+            @case ('roles') { Rôles de {{ m.user.firstName }} {{ m.user.lastName }} }
+            @case ('password') { Mot de passe de {{ m.user.firstName }} {{ m.user.lastName }} }
+          }
+        </h2>
+        <button type="button" class="close" (click)="closeModal()" aria-label="Fermer">
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+
+      @if (modalError()) {
+        <div class="alert">
+          <app-icon name="alert" [size]="18" /> {{ modalError() }}
+        </div>
+      }
+
+      <!-- Création -->
+      @if (m.kind === 'create') {
+        <form [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate autocomplete="off">
+          <div class="row">
+            <div class="field" [class.invalid]="createForm.controls.firstName.touched && createForm.controls.firstName.invalid">
+              <label for="firstName">Prénom</label>
+              <input id="firstName" formControlName="firstName" autocomplete="off" />
+            </div>
+            <div class="field" [class.invalid]="createForm.controls.lastName.touched && createForm.controls.lastName.invalid">
+              <label for="lastName">Nom</label>
+              <input id="lastName" formControlName="lastName" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field" [class.invalid]="createForm.controls.email.touched && createForm.controls.email.invalid">
+            <label for="newEmail">Email ENSIAS</label>
+            <input id="newEmail" type="email" name="new-account-email" formControlName="email"
+                   autocomplete="off" placeholder="prenom.nom@ensias.ma" />
+          </div>
+
+          <div class="field" [class.invalid]="createForm.controls.password.touched && createForm.controls.password.invalid">
+            <label for="newPassword">Mot de passe provisoire</label>
+            <div class="pwd">
+              <input id="newPassword" name="new-account-password" [type]="showPassword() ? 'text' : 'password'"
+                     formControlName="password" autocomplete="new-password" />
+              <button type="button" class="mini" (click)="showPassword.set(!showPassword())">
+                {{ showPassword() ? 'Masquer' : 'Afficher' }}
+              </button>
+              <button type="button" class="mini blue" (click)="generatePassword('create')">Générer</button>
+            </div>
+            @if (createForm.controls.password.touched && createForm.controls.password.invalid) {
+              <small class="hint">8 caractères minimum</small>
+            }
+          </div>
+
+          <p class="label">Rôles</p>
+          <div class="role-picker">
+            @for (r of roleCodes; track r) {
+              <button type="button" class="role-chip" [class.on]="selectedRoles().includes(r)" (click)="toggleRole(r)">
+                <span class="tick"><app-icon name="check" [size]="14" /></span>
+                {{ roleLabels[r] }}
+              </button>
+            }
+          </div>
+
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Créer le compte
+            </button>
+          </footer>
+        </form>
+      }
+
+      <!-- Rôles -->
+      @if (m.kind === 'roles') {
+        <p class="intro">Un utilisateur peut cumuler plusieurs rôles, par exemple chef de filière et enseignant.</p>
+        <div class="role-picker">
+          @for (r of roleCodes; track r) {
+            <button type="button" class="role-chip" [class.on]="selectedRoles().includes(r)" (click)="toggleRole(r)">
+              <span class="tick"><app-icon name="check" [size]="14" /></span>
+              {{ roleLabels[r] }}
+            </button>
+          }
+        </div>
+        <footer class="dialog-foot">
+          <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+          <button type="button" class="btn primary" [disabled]="saving()" (click)="submitRoles()">
+            @if (saving()) { <span class="spinner"></span> } Enregistrer
+          </button>
+        </footer>
+      }
+
+      <!-- Mot de passe -->
+      @if (m.kind === 'password') {
+        <form [formGroup]="passwordForm" (ngSubmit)="submitPassword()" novalidate>
+          <p class="intro">
+            Le nouveau mot de passe remplace l'ancien et ferme toutes les sessions ouvertes de {{ m.user.firstName }}.
+            Communiquez-le-lui de façon sécurisée.
+          </p>
+          <div class="field" [class.invalid]="passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid">
+            <label for="resetPassword">Nouveau mot de passe</label>
+            <div class="pwd">
+              <input id="resetPassword" [type]="showPassword() ? 'text' : 'password'" formControlName="newPassword"
+                     autocomplete="new-password" />
+              <button type="button" class="mini" (click)="showPassword.set(!showPassword())">
+                {{ showPassword() ? 'Masquer' : 'Afficher' }}
+              </button>
+              <button type="button" class="mini blue" (click)="generatePassword('reset')">Générer</button>
+              <button type="button" class="mini" [class.done]="copied()"
+                      [disabled]="!passwordForm.controls.newPassword.value"
+                      (click)="copyPassword(passwordForm.controls.newPassword.value)">
+                {{ copied() ? 'Copié ✓' : 'Copier' }}
+              </button>
+            </div>
+            @if (passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid) {
+              <small class="hint">8 caractères minimum</small>
+            }
+          </div>
+          <footer class="dialog-foot">
+            <button type="button" class="btn ghost" (click)="closeModal()">Annuler</button>
+            <button type="submit" class="btn danger" [disabled]="saving()">
+              @if (saving()) { <span class="spinner"></span> } Réinitialiser
+            </button>
+          </footer>
+        </form>
+      }
+    </div>
+  </div>
+}
+
+<!-- Notification -->
+@if (toast(); as t) {
+  <div class="toast" [class.ko]="t.type === 'ko'" role="status">
+    <app-icon [name]="t.type === 'ok' ? 'check' : 'alert'" [size]="18" />
+    {{ t.text }}
+  </div>
+}
