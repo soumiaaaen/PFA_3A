@@ -1,0 +1,35 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: administration-academic-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ensias?currentSchema=administration_academic
+    username: admin_academic_user
+    password: admin_academic_pwd
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: administration_academic
+  flyway:
+    schemas: administration_academic
+    default-schema: administration_academic
+
+management:
+  endpoints.web.exposure.include: health,info
+  health.rabbit.enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-change-me-au-moins-32-caracteres!!}
+    issuer: ensias-admin-academic
+    expiration-minutes: 60
+    refresh-expiration-days: 7
+  bootstrap:
+    admin-email: ${ADMIN_EMAIL:admin@ensias.ma}
+    admin-password: ${ADMIN_PASSWORD:Admin@12345}
+  internal:
+    api-key: ${INTERNAL_API_KEY:dev-internal-key-change-me}
