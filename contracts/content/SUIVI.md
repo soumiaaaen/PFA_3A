@@ -2,17 +2,17 @@
 
 Légende : ✅ fait · 🔄 en cours · ⏳ à faire · 🔒 bloqué / en attente d'un autre membre
 
-Dernière mise à jour : 10/11/2026
+Dernière mise à jour : 10/11/2026 (soir)
 
 | # | Étape | Contenu | Semaine cible | Statut |
 |---|---|---|---|---|
 | 0 | Environnement | VM VirtualBox Ubuntu 26.04 Server (10 Go, 2 CPU, 80 Go) + VS Code Remote-SSH ; Java 21.0.13, Node 24.22, Docker 29.9, Compose v5.7 ; clé SSH GitHub (port 443) ; dépôt cloné ; service d'Aya UP, login Swagger OK | S2 | ✅ 10/11 |
-| 1 | Conception | Cas d'utilisation, règles d'accès, diagramme d'états, classes, séquences, contrat API, contrat événements (`CONCEPTION.md`, `EVENTS.md`) | S1 | 🔄 brouillon v0.1 sur la branche `feature/content-service`, décisions ❓ à valider |
-| 2 | Infra | `infra/postgres/init/04-content.sql`, MinIO dans `docker-compose.yml`, variables dans `.env.example`, port 8084 | S2 | ⏳ |
-| 3 | Squelette | Projet Spring Boot (`ma.ensias.content`), sécurité JWT + clé interne, gestion d'erreurs, `/actuator/health`, Swagger, Dockerfile multi-stage | S2–S3 | ⏳ |
-| 4 | Base de données | Migrations Flyway V1…, entités JPA, repositories, catégories initiales | S3 | ⏳ |
+| 1 | Conception | Cas d'utilisation, règles d'accès, diagramme d'états, classes, séquences, contrat API, contrat événements (`CONCEPTION.md`, `EVENTS.md`) | S1 | ✅ v0.2 (décisions prises le 10/11), à présenter à l'encadrant |
+| 2 | Infra | `infra/postgres/init/04-content.sql` (schéma `content`, user `content_user`), MinIO (image `cgr.dev/chainguard/minio`, ports 9000/9001) dans `docker-compose.yml`, variables `MINIO_ROOT_*` dans `.env.example` | S2 | ✅ 10/11 |
+| 3 | Squelette | Projet Spring Boot 4.1.2 (`ma.ensias.content`, port 8084), sécurité JWT (signature + émetteur) + clé interne, erreurs RFC 9457, `/actuator/health`, Swagger, Dockerfile multi-stage, client S3 (AWS SDK v2) + création auto du bucket, service dans docker-compose, cibles `make content-*` ; test `GET /api/content/me` OK avec le token de prof@ | S2–S3 | ✅ 10/11 |
+| 4 | Base de données | Migration `V1__documents.sql` (7 tables : document_category, storage_object, document, document_version, document_acl, outbox_event, audit_event), entités JPA, repositories, endpoint `GET /api/document-categories` | S3 | 🔄 code livré, à tester |
 | 5 | Dépôt et versions | Upload multipart → MinIO, vérification type/taille, SHA-256, versions, téléchargement | S3–S5 | ⏳ |
-| 6 | Droits et publication | Client admin-academic (`/internal`), ACL par groupes, cycle BROUILLON/PUBLIE/ARCHIVE, liste filtrée selon les droits | S4–S5 | ⏳ (🔒 endpoint responsable filière à demander à Aya) |
+| 6 | Droits et publication | Client admin-academic (`/internal`), ACL par groupes, cycle BROUILLON/PUBLIE/ARCHIVE, liste filtrée selon les droits | S4–S5 | ⏳ (débloqué : endpoints d'Aya disponibles) |
 | 7 | Événements | Table outbox, publication RabbitMQ `DocumentPublished` / `DocumentAccessRevoked`, retries | S5 | ⏳ (🔒 RabbitMQ dans compose) |
 | 8 | API interne IA | `/internal/documents/...` : vérification d'accès, documents accessibles, contenu du fichier | S5 | ⏳ |
 | 9 | Audit et démo | Journal des actions, données de démonstration (profil `demo`) | S5 | ⏳ |
@@ -28,9 +28,10 @@ Dernière mise à jour : 10/11/2026
 
 ## Questions ouvertes / à envoyer à l'équipe
 
-- [ ] Aya : ajouter `GET /internal/programs/{id}` (headUserId, departmentId) et `GET /internal/departments/{id}` (headUserId)
+- [x] Aya : endpoints `GET /internal/programs?headUserId=&departmentId=` et `GET /internal/departments?headUserId=` — en ligne le 10/11
 - [ ] Équipe : numérotation des ports (8082 planning, 8083 monitoring, 8084 content, 8085 ai ?)
 - [ ] Soumia / équipe : qui ajoute RabbitMQ au compose, convention des exchanges
 - [ ] Équipe : qui pilote la Gateway
+- [ ] Équipe : prévenir que MinIO utilise l'image Chainguard (l'image officielle `minio/minio` n'est plus publiée depuis octobre 2025) et ajouter `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` dans chaque `infra/.env`
 - [ ] Fatima et Soumia : relire `EVENTS.md`
 - [ ] Encadrant : droits officiels sur les documents (cahier des charges §12)

@@ -1,12 +1,12 @@
 # content-service — Dossier de conception
 
 Service n°4 d'ENSiaS. Responsable : **Ihssan (M4)**.
-Statut : **brouillon v0.1 — à valider en équipe** (les points marqués ❓ sont des décisions à confirmer).
+Statut : **v0.2** — décisions de la section 6 prises le 10/11/2026 (à présenter à l'encadrant).
 
 | | |
 |---|---|
 | Rôle | Documents pédagogiques (cours, TD, TP, annales) : dépôt, classement, versions, droits d'accès (ACL), métadonnées, publication, stockage |
-| Port | **8084** (8081 admin-academic, 8082 planning, 8083 monitoring, 8085 ai — ❓ à confirmer) |
+| Port | **8084** (proposé à l'équipe : 8081 admin-academic, 8082 planning, 8083 monitoring, 8085 ai) |
 | Base | PostgreSQL, schéma **`content`**, utilisateur `content_user` |
 | Fichiers | MinIO, bucket **`ensias-documents`** (privé, jamais exposé directement) |
 | Événements | `DocumentPublished`, `DocumentAccessRevoked` (voir [EVENTS.md](EVENTS.md)) |
@@ -59,7 +59,7 @@ flowchart LR
 - Un document est **toujours rattaché à un élément** (`elementId`, UUID de l'administration-academic-service). Il hérite donc de la filière, du module et de la période de cet élément.
 - Catégories : `COURS`, `TD`, `TP`, `ANNALE` (table de référence `document_category`, extensible).
 - Un document a **une ou plusieurs versions**. Une seule est la **version courante** ; les anciennes restent téléchargeables par les gestionnaires (historique).
-- Formats acceptés : PDF (obligatoire pour l'IA), DOCX, PPTX, ZIP. Taille max **50 Mo**. ❓
+- Formats acceptés : **PDF** (seul format indexé par l'IA), **DOCX**, **PPTX**. Taille max **50 Mo**. Les ZIP sont refusés : contenu non vérifiable et non indexable.
 - Le type réel du fichier est vérifié (signature du fichier, pas seulement l'extension) et une empreinte **SHA-256** est calculée.
 
 ### 2.2 Cycle de vie
@@ -85,7 +85,7 @@ stateDiagram-v2
 | PUBLIE → BROUILLON | enseignant affecté, chef de filière | `DocumentAccessRevoked` (reason `UNPUBLISHED`) |
 | → ARCHIVE | auteur, chef de filière, admin | `DocumentAccessRevoked` (reason `ARCHIVED`) si était publié |
 
-Pas de suppression physique depuis l'API : l'archivage remplace la suppression (traçabilité EF-15). ❓
+Pas de suppression physique depuis l'API : l'archivage remplace la suppression (traçabilité EF-15). Seul un BROUILLON jamais publié peut être supprimé définitivement par son auteur (erreur de dépôt).
 
 ### 2.3 Droits d'accès (RBAC + périmètre + ACL)
 
@@ -104,7 +104,7 @@ Par défaut à la publication : les groupes pour lesquels l'enseignant est affec
 
 Règles de sécurité :
 - Toute décision est prise **côté backend** à chaque requête (le menu Angular n'est qu'un confort).
-- Un document refusé renvoie **404** (et non 403) pour ne pas révéler son existence. ❓
+- Un document refusé renvoie **404** (et non 403) pour ne pas révéler son existence. Une action interdite sur un document visible (ex. un étudiant qui tente de publier) renvoie **403**.
 - Le téléchargement passe **par le service** (flux renvoyé par content-service) ; MinIO n'est jamais accessible depuis le navigateur. (Alternative : URL présignée de 5 min — plus tard si besoin de performance.)
 - Les appels vers l'administration-academic-service (`/internal/**`) se font avec `X-Internal-Key`.
 
@@ -116,7 +116,8 @@ Règles de sécurité :
 | Enseignant affecté à élément + groupe | `GET /internal/assignments/check?elementId=&teacherUserId=&groupId=` | ✅ existe |
 | Groupes d'un enseignant pour un élément | `GET /internal/assignments?periodId=&teacherUserId=&elementId=` | ✅ existe |
 | Groupes d'un étudiant | `GET /internal/students/{userId}/groups` | ✅ existe |
-| Responsable d'une filière / d'un département | ❌ **à demander à Aya** : `GET /internal/programs/{id}` avec `headUserId`, `departmentId`, et `GET /internal/departments/{id}` avec `headUserId` | ⏳ |
+| Filières dirigées par un chef / filières d'un département | `GET /internal/programs?headUserId=&departmentId=` (paramètres facultatifs) | ✅ ajouté par Aya le 10/11 |
+| Départements dirigés par un chef | `GET /internal/departments?headUserId=` | ✅ ajouté par Aya le 10/11 |
 
 ---
 
@@ -139,6 +140,7 @@ classDiagram
         Instant createdAt
         Instant updatedAt
         Instant publishedAt
+        Instant archivedAt
     }
     class DocumentVersion {
         UUID id
@@ -174,7 +176,9 @@ classDiagram
     class OutboxEvent {
         UUID id
         String eventType
+        String routingKey
         UUID aggregateId
+        String lastError
         JSON payload
         Instant createdAt
         Instant publishedAt
@@ -301,12 +305,14 @@ sequenceDiagram
 
 ---
 
-## 6. Décisions à valider (❓)
+## 6. Décisions (prises le 10/11/2026)
 
-1. Ports : 8084 pour content-service (et la numérotation des autres).
-2. Formats et taille max (PDF, DOCX, PPTX, ZIP — 50 Mo).
-3. 404 au lieu de 403 pour un document non autorisé.
-4. Pas de suppression physique, archivage uniquement.
-5. Un chef de filière peut publier/dépublier les documents de sa filière (pas seulement l'auteur).
-6. Demande à Aya : endpoints internes `programs/{id}` et `departments/{id}` avec le responsable.
-7. Qui ajoute RabbitMQ au docker-compose (Soumia ou moi) et le nom de l'exchange commun.
+| # | Sujet | Décision | Raison |
+|---|---|---|---|
+| 1 | Port | **8084** ; numérotation proposée à l'équipe : 8082 planning, 8083 monitoring, 8085 ai | Ordre des services dans le cahier des charges |
+| 2 | Formats et taille | **PDF, DOCX, PPTX**, **50 Mo** max | PDF indispensable pour l'IA ; ZIP refusé (contenu invisible, risque de fichiers malveillants) |
+| 3 | Document non autorisé | **404** si l'utilisateur ne peut pas le voir, **403** s'il le voit mais l'action est interdite | Ne pas révéler l'existence d'un document privé (critère EF-10) |
+| 4 | Suppression | **Archivage** à la place de la suppression ; suppression définitive seulement d'un brouillon jamais publié, par son auteur | Traçabilité EF-15, et l'IA a pu indexer un document publié |
+| 5 | Droits du chef de filière | Il peut **publier, dépublier, archiver** les documents de sa filière, mais pas déposer à la place d'un enseignant | Cahier des charges : le chef de filière « valide » et supervise |
+| 6 | Périmètre des chefs | Chef de filière : `programs?headUserId=<sub>`. Chef de département : `departments?headUserId=<sub>` puis `programs?departmentId=<id>` (endpoints d'Aya, 10/11) | Aucune lecture de la base d'un autre service |
+| 7 | RabbitMQ | Propriété de Soumia (M3). Le content-service écrit ses événements dans sa **table outbox** dès l'étape 4 ; l'envoi vers RabbitMQ est branché à l'étape 7 | Aucun blocage : rien n'est perdu en attendant |
