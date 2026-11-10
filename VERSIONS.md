@@ -30,4 +30,7 @@ Vérification rapide : `make check`.
 |---|---|
 | 5432 | PostgreSQL |
 | 8081 | administration-academic-service (Swagger : http://localhost:8081/swagger-ui.html) |
+| 8084 | content-service (Swagger : http://localhost:8084/swagger-ui.html) |
+| 9000 | MinIO — API S3 (utilisée par content-service) |
+| 9001 | MinIO — console web |
 | 4200 | Frontend Angular |

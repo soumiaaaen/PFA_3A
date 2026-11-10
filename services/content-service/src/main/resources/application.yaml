@@ -1,0 +1,42 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: content-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ensias?currentSchema=content
+    username: content_user
+    password: content_pwd
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: content
+  flyway:
+    schemas: content
+    default-schema: content
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+management:
+  endpoints.web.exposure.include: health,info
+
+app:
+  jwt:
+    # Même secret que l'administration-academic-service : c'est lui qui signe les tokens
+    secret: ${JWT_SECRET:dev-secret-change-me-au-moins-32-caracteres!!}
+    issuer: ensias-admin-academic
+  internal:
+    api-key: ${INTERNAL_API_KEY:dev-internal-key-change-me}
+  admin-academic:
+    base-url: ${ADMIN_ACADEMIC_URL:http://localhost:8081}
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ROOT_USER:ensias-minio}
+    secret-key: ${MINIO_ROOT_PASSWORD:change-me}
+    bucket: ${MINIO_BUCKET:ensias-documents}
+    region: us-east-1

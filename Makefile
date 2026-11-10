@@ -15,8 +15,9 @@ endif
 
 SERVICE := services/administration-academic-service
 COMPOSE := docker compose -f infra/docker-compose.yml
+CONTENT := services/content-service
 
-.PHONY: help check up down logs db back test install front
+.PHONY: help check up down logs db back test install front content-logs content-back content-test
 
 help:
 > @echo make check    - affiche les versions installees, a comparer avec VERSIONS.md
@@ -28,6 +29,9 @@ help:
 > @echo make test     - lance les tests du backend
 > @echo make install  - installe les dependances du frontend
 > @echo make front    - lance le frontend sur http://localhost:4200
+> @echo make content-logs - affiche les logs du content-service
+> @echo make content-back - lance le content-service en local sans Docker
+> @echo make content-test - lance les tests du content-service
 
 check:
 > java -version
@@ -60,3 +64,12 @@ install:
 
 front:
 > cd frontend && npm start
+
+content-logs:
+> $(COMPOSE) logs -f content-service
+
+content-back:
+> cd $(CONTENT) && $(MVNW) spring-boot:run
+
+content-test:
+> cd $(CONTENT) && $(MVNW) test

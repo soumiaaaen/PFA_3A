@@ -49,6 +49,29 @@ services:
     volumes:
       - miniodata:/data
 
+  content-service:
+    build: ../services/content-service
+    container_name: ensias-content
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      administration-academic-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ensias?currentSchema=content
+      SPRING_DATASOURCE_USERNAME: content_user
+      SPRING_DATASOURCE_PASSWORD: content_pwd
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      ADMIN_ACADEMIC_URL: http://administration-academic-service:8081
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "8084:8084"
+
 volumes:
   pgdata:
   miniodata:
