@@ -34,5 +34,21 @@ services:
     ports:
       - "8081:8081"
 
+  # Stockage des fichiers du content-service (API S3 : 9000, console web : 9001)
+  # Image MinIO maintenue par Chainguard : MinIO ne publie plus d'image Docker officielle depuis octobre 2025
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: ensias-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
 volumes:
   pgdata:
+  miniodata:
