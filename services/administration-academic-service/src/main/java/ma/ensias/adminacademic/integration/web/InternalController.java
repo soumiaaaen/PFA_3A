@@ -45,6 +45,16 @@ public class InternalController {
     public List<GroupView> studentGroups(@PathVariable UUID userId) {
         return service.studentGroups(userId);
     }
+        @GetMapping("/departments")
+    public List<DepartmentView> departments(@RequestParam(required = false) UUID headUserId) {
+        return service.departments(headUserId);
+    }
+
+    @GetMapping("/programs")
+    public List<ProgramView> programs(@RequestParam(required = false) UUID headUserId,
+                                      @RequestParam(required = false) UUID departmentId) {
+        return service.programs(headUserId, departmentId);
+    }
 
     @GetMapping("/assignments")
     public List<AssignmentView> assignments(@RequestParam UUID periodId,

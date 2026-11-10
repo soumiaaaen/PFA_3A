@@ -11,6 +11,8 @@ import ma.ensias.adminacademic.integration.web.InternalViews.*;
 import ma.ensias.adminacademic.people.repository.GroupEnrollmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ma.ensias.adminacademic.academic.repository.DepartmentRepository;
+import ma.ensias.adminacademic.academic.repository.ProgramRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +28,8 @@ public class InternalQueryService {
     private final StudentGroupRepository groupRepository;
     private final TeachingAssignmentRepository assignmentRepository;
     private final GroupEnrollmentRepository enrollmentRepository;
+        private final DepartmentRepository departmentRepository;
+    private final ProgramRepository programRepository;
 
     public UserView user(UUID id) {
         return userRepository.findById(id).map(UserView::from)
@@ -74,6 +78,25 @@ public class InternalQueryService {
     public List<GroupView> studentGroups(UUID studentUserId) {
         return enrollmentRepository.findByStudentUserId(studentUserId).stream()
                 .map(e -> GroupView.from(e.getStudentGroup()))
+                .toList();
+    }
+    
+    // Départements, éventuellement filtrés par chef (droits d'accès des autres services)
+    public List<DepartmentView> departments(UUID headUserId) {
+        return departmentRepository.findAllByOrderByCode().stream()
+                .filter(d -> headUserId == null || headUserId.equals(d.getHeadUserId()))
+                .map(DepartmentView::from)
+                .toList();
+    }
+
+    // Filières, éventuellement filtrées par chef et/ou par département
+    public List<ProgramView> programs(UUID headUserId, UUID departmentId) {
+        var programs = departmentId == null
+                ? programRepository.findAllByOrderByCode()
+                : programRepository.findByDepartmentIdOrderByCode(departmentId);
+        return programs.stream()
+                .filter(p -> headUserId == null || headUserId.equals(p.getHeadUserId()))
+                .map(ProgramView::from)
                 .toList();
     }
 }
