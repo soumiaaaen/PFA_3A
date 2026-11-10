@@ -6,6 +6,8 @@ import ma.ensias.adminacademic.assignment.entity.ActivityType;
 import ma.ensias.adminacademic.assignment.entity.TeachingAssignment;
 import ma.ensias.adminacademic.catalog.entity.Element;
 import ma.ensias.adminacademic.identity.entity.User;
+import ma.ensias.adminacademic.academic.entity.Department;
+import ma.ensias.adminacademic.academic.entity.Program;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,6 +59,7 @@ public final class InternalViews {
                     g.getAcademicYear().getId());
         }
     }
+    
 
     public record AssignmentView(UUID id, UUID elementId, UUID teacherUserId, UUID groupId,
                                  UUID periodId, ActivityType activityType, BigDecimal targetHours) {
@@ -64,6 +67,18 @@ public final class InternalViews {
             return new AssignmentView(a.getId(), a.getElement().getId(), a.getTeacher().getId(),
                     a.getStudentGroup().getId(), a.getPeriod().getId(),
                     a.getActivityType(), a.getTargetHours());
+        }
+    }
+        public record DepartmentView(UUID id, String code, String name, UUID headUserId) {
+        public static DepartmentView from(Department d) {
+            return new DepartmentView(d.getId(), d.getCode(), d.getName(), d.getHeadUserId());
+        }
+    }
+
+    public record ProgramView(UUID id, String code, String name, UUID departmentId, UUID headUserId) {
+        public static ProgramView from(Program p) {
+            return new ProgramView(p.getId(), p.getCode(), p.getName(),
+                    p.getDepartment().getId(), p.getHeadUserId());
         }
     }
 

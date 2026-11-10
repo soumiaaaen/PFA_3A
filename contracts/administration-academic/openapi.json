@@ -1123,6 +1123,49 @@
         }
       }
     },
+    "/internal/programs": {
+      "get": {
+        "tags": [
+          "internal-controller"
+        ],
+        "operationId": "programs",
+        "parameters": [
+          {
+            "name": "headUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProgramView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/periods/{id}": {
       "get": {
         "tags": [
@@ -1244,6 +1287,40 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ElementView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/departments": {
+      "get": {
+        "tags": [
+          "internal-controller"
+        ],
+        "operationId": "departments",
+        "parameters": [
+          {
+            "name": "headUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DepartmentView"
+                  }
                 }
               }
             }
@@ -2590,6 +2667,29 @@
           }
         }
       },
+      "ProgramView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "departmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "headUserId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "PeriodView": {
         "type": "object",
         "properties": {
@@ -2649,6 +2749,25 @@
           },
           "period": {
             "$ref": "#/components/schemas/PeriodView"
+          }
+        }
+      },
+      "DepartmentView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "headUserId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

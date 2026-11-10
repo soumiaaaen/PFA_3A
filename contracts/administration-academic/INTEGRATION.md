@@ -152,6 +152,8 @@ Sans clé valide : `401`. La Gateway ne doit **jamais** router `/internal/**` ve
 | `GET /internal/periods/{id}` | numéro, semestre, année, dates de début et de fin | planning |
 | `GET /internal/elements/{id}` | élément + module + filière + période complète | planning, content, monitoring |
 | `GET /internal/groups/{id}` | nom, niveau, filière, département, année | planning, monitoring |
+| `GET /internal/departments?headUserId=...` (facultatif) | `[{ id, code, name, headUserId }]` | content (droits du chef de département) |
+| `GET /internal/programs?headUserId=...&departmentId=...` (facultatifs) | `[{ id, code, name, departmentId, headUserId }]` | content (droits du chef de filière / département) |
 | `GET /internal/groups/{id}/students` | liste des ids (UUID) des étudiants du groupe | monitoring (absences, notifications) |
 | `GET /internal/students/{userId}/groups` | groupes de l'étudiant | planning (EDT), content (ACL) |
 | `GET /internal/assignments?periodId=...` (+ `teacherUserId`, `groupId`, `elementId` optionnels) | affectations actives avec `targetHours` | monitoring (volumes horaires) |
