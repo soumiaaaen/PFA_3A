@@ -222,7 +222,7 @@ Choix :
 
 | Méthode | Chemin | Rôle | Description |
 |---|---|---|---|
-| `POST` | `/api/documents` (multipart : `file` + `metadata` JSON) | ENSEIGNANT | Dépôt → BROUILLON, version 1 |
+| `POST` | `/api/documents` (multipart : `file`, `elementId`, `category`, `title`, `description`) | ENSEIGNANT affecté | Dépôt → BROUILLON, version 1 |
 | `GET` | `/api/documents?elementId=&programId=&category=&status=&q=&page=&size=` | tous | Liste **filtrée selon les droits** |
 | `GET` | `/api/documents/{id}` | tous (selon droits) | Détail + version courante |
 | `PATCH` | `/api/documents/{id}` | ENSEIGNANT, CHEF_FILIERE | Titre, description, catégorie |

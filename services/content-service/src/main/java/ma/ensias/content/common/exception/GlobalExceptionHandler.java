@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
@@ -39,6 +40,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ProblemDetail tooLarge(MaxUploadSizeExceededException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, "Fichier trop volumineux (50 Mo maximum)");
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ProblemDetail invalidParameters(HandlerMethodValidationException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "Paramètres invalides (titre obligatoire, 200 caractères maximum)");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
