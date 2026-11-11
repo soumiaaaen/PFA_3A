@@ -15,6 +15,7 @@ import ma.ensias.content.document.web.dto.DocumentDtos.DocumentResponse;
 import ma.ensias.content.document.web.dto.DocumentDtos.VersionResponse;
 import ma.ensias.content.integration.AdminAcademicClient;
 import ma.ensias.content.integration.AdminAcademicViews.ElementView;
+import ma.ensias.content.outbox.OutboxService;
 import ma.ensias.content.storage.StorageService;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,8 @@ public class DocumentService {
     private final DocumentRepository documents;
     private final DocumentVersionRepository versions;
     private final DocumentCategoryRepository categories;
+    private final DocumentAclRepository acls;
+    private final OutboxService outbox;
     private final StorageObjectRepository storageObjects;
     private final StorageService storage;
     private final StorageProperties storageProps;
@@ -80,7 +83,7 @@ public class DocumentService {
         DocumentVersion v = storeVersion(d, file, null);
         audit.record("DOCUMENT_CREATED", d.getId(),
                 "titre=" + d.getTitle() + ", element=" + element.code() + ", categorie=" + category.getCode());
-        return DocumentResponse.from(d, v);
+        return DocumentResponse.from(d, v, List.of());
     }
 
     @Transactional
@@ -94,7 +97,11 @@ public class DocumentService {
         }
         DocumentVersion v = storeVersion(d, file, comment);
         audit.record("VERSION_ADDED", d.getId(), "version=" + v.getVersionNumber());
-        // Étape 7 : si le document est publié, un événement DocumentPublished sera ajouté à l'outbox ici
+        if (d.getStatus() == DocumentStatus.PUBLIE) {
+            // Nouvelle version d'un document publié : l'IA doit réindexer (EVENTS.md)
+            List<UUID> groups = acls.findByDocumentId(d.getId()).stream().map(DocumentAcl::getGroupId).toList();
+            outbox.documentPublished(d, v, groups, user.id());
+        }
         return VersionResponse.from(v);
     }
 
@@ -159,7 +166,8 @@ public class DocumentService {
         Document d = findVisible(documentId);
         DocumentVersion current = d.getCurrentVersionId() == null ? null
                 : versions.findById(d.getCurrentVersionId()).orElse(null);
-        return DocumentResponse.from(d, current);
+        List<UUID> groups = acls.findByDocumentId(d.getId()).stream().map(DocumentAcl::getGroupId).toList();
+        return DocumentResponse.from(d, current, groups);
     }
 
     @Transactional(readOnly = true)

@@ -52,6 +52,24 @@ public class AdminAcademicClient {
                 .retrieve().body(ASSIGNMENTS);
     }
 
+    /** Toutes les affectations actives d'un élément sur une période (tous enseignants confondus). */
+    public List<AssignmentView> elementAssignments(UUID periodId, UUID elementId) {
+        return http.get().uri(u -> u.path("/internal/assignments")
+                        .queryParam("periodId", periodId)
+                        .queryParam("elementId", elementId)
+                        .build())
+                .retrieve().body(ASSIGNMENTS);
+    }
+
+    /** Affectations actives d'un enseignant sur une période (tous éléments). */
+    public List<AssignmentView> teacherAssignments(UUID periodId, UUID teacherUserId) {
+        return http.get().uri(u -> u.path("/internal/assignments")
+                        .queryParam("periodId", periodId)
+                        .queryParam("teacherUserId", teacherUserId)
+                        .build())
+                .retrieve().body(ASSIGNMENTS);
+    }
+
     /** Groupes dont l'étudiant fait partie. */
     public List<GroupView> studentGroups(UUID studentUserId) {
         return http.get().uri("/internal/students/{id}/groups", studentUserId).retrieve().body(GROUPS);

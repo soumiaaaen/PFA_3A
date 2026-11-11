@@ -37,6 +37,18 @@ public class AccessPolicy {
                 .map(a -> a.groupId()).distinct().toList();
     }
 
+    /**
+     * Groupes que l'utilisateur peut autoriser sur ce document :
+     * un enseignant ses propres groupes pour l'élément ; le chef de filière tous les groupes de l'élément.
+     */
+    public List<UUID> allowedGroups(Document d) {
+        if (isProgramHead(d.getProgramId())) {
+            return adminAcademic.elementAssignments(d.getPeriodId(), d.getElementId()).stream()
+                    .map(a -> a.groupId()).distinct().toList();
+        }
+        return assignedGroups(d.getElementId(), d.getPeriodId());
+    }
+
     public boolean isProgramHead(UUID programId) {
         return user.hasRole("CHEF_FILIERE")
                 && adminAcademic.programsHeadedBy(user.id()).stream().anyMatch(p -> p.id().equals(programId));

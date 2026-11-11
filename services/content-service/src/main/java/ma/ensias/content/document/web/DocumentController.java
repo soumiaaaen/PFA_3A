@@ -4,9 +4,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
+import ma.ensias.content.document.entity.DocumentStatus;
+import ma.ensias.content.document.service.DocumentQueryService;
+import ma.ensias.content.document.service.DocumentQueryService.Filters;
 import ma.ensias.content.document.service.DocumentService;
 import ma.ensias.content.document.service.DocumentService.Download;
+import ma.ensias.content.document.service.PublicationService;
 import ma.ensias.content.document.web.dto.DocumentDtos.DocumentResponse;
+import ma.ensias.content.document.web.dto.DocumentDtos.GroupsRequest;
+import ma.ensias.content.document.web.dto.DocumentDtos.UpdateDocumentRequest;
 import ma.ensias.content.document.web.dto.DocumentDtos.VersionResponse;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
@@ -27,6 +34,19 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentService service;
+    private final PublicationService publication;
+    private final DocumentQueryService query;
+
+    @Operation(summary = "Liste des documents que je peux voir (filtres facultatifs ; archives seulement avec status=ARCHIVE)")
+    @GetMapping
+    public List<DocumentResponse> list(@RequestParam(required = false) UUID elementId,
+                                       @RequestParam(required = false) UUID programId,
+                                       @RequestParam(required = false) UUID periodId,
+                                       @RequestParam(required = false) String category,
+                                       @RequestParam(required = false) DocumentStatus status,
+                                       @RequestParam(required = false) String q) {
+        return query.list(new Filters(elementId, programId, periodId, category, status, q));
+    }
 
     @Operation(summary = "Déposer un document (enseignant affecté à l'élément) — il est créé en BROUILLON, version 1")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -43,6 +63,43 @@ public class DocumentController {
     @GetMapping("/{id}")
     public DocumentResponse get(@PathVariable UUID id) {
         return service.get(id);
+    }
+
+    @Operation(summary = "Modifier le titre, la description ou la catégorie (champs facultatifs)")
+    @PatchMapping("/{id}")
+    public DocumentResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateDocumentRequest body) {
+        return publication.update(id, body);
+    }
+
+    @Operation(summary = "Choisir les groupes d'étudiants autorisés (remplace la liste)")
+    @PutMapping("/{id}/groups")
+    public DocumentResponse setGroups(@PathVariable UUID id, @Valid @RequestBody GroupsRequest body) {
+        return publication.setGroups(id, body.groupIds());
+    }
+
+    @Operation(summary = "Publier (BROUILLON → PUBLIE). Sans groupes choisis : vos groupes pour cet élément")
+    @PostMapping("/{id}/publish")
+    public DocumentResponse publish(@PathVariable UUID id) {
+        return publication.publish(id);
+    }
+
+    @Operation(summary = "Dépublier (PUBLIE → BROUILLON) : les étudiants ne le voient plus")
+    @PostMapping("/{id}/unpublish")
+    public DocumentResponse unpublish(@PathVariable UUID id) {
+        return publication.unpublish(id);
+    }
+
+    @Operation(summary = "Archiver (définitif) : auteur, chef de filière ou admin")
+    @PostMapping("/{id}/archive")
+    public DocumentResponse archive(@PathVariable UUID id) {
+        return publication.archive(id);
+    }
+
+    @Operation(summary = "Supprimer un brouillon jamais publié (auteur uniquement)")
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDraft(@PathVariable UUID id) {
+        publication.deleteDraft(id);
     }
 
     @Operation(summary = "Ajouter une nouvelle version (fichier corrigé ou mis à jour)")

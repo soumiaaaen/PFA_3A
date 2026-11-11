@@ -234,6 +234,7 @@ Choix :
 | `POST` | `/api/documents/{id}/publish` | ENSEIGNANT, CHEF_FILIERE | BROUILLON → PUBLIE |
 | `POST` | `/api/documents/{id}/unpublish` | ENSEIGNANT, CHEF_FILIERE | PUBLIE → BROUILLON |
 | `POST` | `/api/documents/{id}/archive` | auteur, CHEF_FILIERE, ADMIN | → ARCHIVE |
+| `DELETE` | `/api/documents/{id}` | auteur | Supprime un brouillon jamais publié (décision 4) |
 | `GET` | `/api/document-categories` | tous | Liste des catégories |
 | `GET` | `/api/documents/audit?documentId=` | ADMIN | Journal |
 

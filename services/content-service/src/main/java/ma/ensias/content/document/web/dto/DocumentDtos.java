@@ -5,7 +5,11 @@ import ma.ensias.content.document.entity.DocumentStatus;
 import ma.ensias.content.document.entity.DocumentVersion;
 import ma.ensias.content.document.entity.StorageObject;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public final class DocumentDtos {
@@ -27,12 +31,22 @@ public final class DocumentDtos {
                                    String category, String title, String description,
                                    DocumentStatus status, UUID ownerUserId,
                                    Instant createdAt, Instant updatedAt, Instant publishedAt,
-                                   VersionResponse currentVersion) {
-        public static DocumentResponse from(Document d, DocumentVersion current) {
+                                   VersionResponse currentVersion, List<UUID> groupIds) {
+        public static DocumentResponse from(Document d, DocumentVersion current, List<UUID> groupIds) {
             return new DocumentResponse(d.getId(), d.getElementId(), d.getProgramId(), d.getPeriodId(),
                     d.getCategory().getCode(), d.getTitle(), d.getDescription(), d.getStatus(),
                     d.getOwnerUserId(), d.getCreatedAt(), d.getUpdatedAt(), d.getPublishedAt(),
-                    current == null ? null : VersionResponse.from(current));
+                    current == null ? null : VersionResponse.from(current), groupIds);
         }
+    }
+
+    /** Modification des métadonnées : seuls les champs renseignés sont changés. */
+    public record UpdateDocumentRequest(@Size(min = 1, max = 200) String title,
+                                        @Size(max = 5000) String description,
+                                        String category) {
+    }
+
+    /** Liste complète des groupes autorisés (remplace l'ancienne). */
+    public record GroupsRequest(@NotNull List<UUID> groupIds) {
     }
 }
