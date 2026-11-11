@@ -3,12 +3,18 @@ package ma.ensias.content.integration;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 /** Réponses des endpoints /internal de l'administration-academic-service (voir son INTEGRATION.md). */
 public final class AdminAcademicViews {
 
     private AdminAcademicViews() {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record UserView(UUID id, String email, String firstName, String lastName,
+                           boolean active, Set<String> roles) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

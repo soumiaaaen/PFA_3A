@@ -245,10 +245,10 @@ Erreurs au format RFC 9457 (`ProblemDetail`), comme l'administration-academic-se
 
 | Méthode | Chemin | Utilisé par | Réponse |
 |---|---|---|---|
-| `GET` | `/internal/documents/{id}/access?userId=` | ai-service | `{ "allowed": true, "aclVersion": 3 }` — vérifie les droits **actuels** |
-| `GET` | `/internal/users/{userId}/accessible-documents` | ai-service | `{ "documentIds": [...] }` — pour filtrer la recherche pgvector **avant** la recherche (ENF-10) |
+| `GET` | `/internal/documents/{id}/access?userId=` | ai-service | `{ "documentId", "userId", "allowed": true, "aclVersion": 3, "status": "PUBLIE" }` — droits **actuels** (document publié + règles §2.3 ; utilisateur inconnu ou désactivé → false) |
+| `GET` | `/internal/users/{userId}/accessible-documents` | ai-service | `{ "userId", "documentIds": [...] }` — documents **publiés** visibles, pour filtrer la recherche pgvector **avant** la recherche (ENF-10) |
 | `GET` | `/internal/documents/{id}` | ai-service, monitoring | métadonnées + version courante + groupes |
-| `GET` | `/internal/documents/{id}/versions/{versionId}/content` | ai-service | flux du fichier (pour l'indexation) |
+| `GET` | `/internal/documents/{id}/versions/{versionId}/content` | ai-service | flux du fichier (pour l'indexation) ; 409 si le document n'est pas publié |
 
 ---
 

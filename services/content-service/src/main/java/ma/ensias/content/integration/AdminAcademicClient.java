@@ -33,6 +33,15 @@ public class AdminAcademicClient {
                 .build();
     }
 
+    /** Compte utilisateur (rôles, actif). null s'il n'existe pas. */
+    public UserView user(UUID userId) {
+        try {
+            return http.get().uri("/internal/users/{id}", userId).retrieve().body(UserView.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+    }
+
     /** L'élément, sa filière et sa période. Erreur 400 s'il n'existe pas. */
     public ElementView element(UUID elementId) {
         try {
